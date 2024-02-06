@@ -6,8 +6,12 @@ import (
 	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-const GreetingsString = "Начинается раунд"
-const EndingString = "Результаты раунда:"
+const (
+	GreetingsString     = "Начинается раунд"
+	EndingString        = "Результаты раунда:"
+	IsNotStartedError   = "Игра не запущена!"
+	AlreadyRunningError = "Игра уже запущена!"
+)
 
 func IsRunning() bool {
 	return GetCurrentGameState() == Running
@@ -26,9 +30,9 @@ func RunGameCommand(bot *tg.BotAPI, chat *tg.Chat, command string) {
 	} else {
 		switch state {
 		case Init:
-			message.SendMessage(bot, chat, "Игра не запущена!")
+			message.SendMessage(bot, chat, IsNotStartedError)
 		case Running:
-			message.SendMessage(bot, chat, "Игра уже запущена!")
+			message.SendMessage(bot, chat, AlreadyRunningError)
 		}
 	}
 }

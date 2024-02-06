@@ -1,7 +1,5 @@
 package game
 
-import "log"
-
 type GameState uint8
 
 const (
@@ -25,14 +23,13 @@ func TryChangeState(to string) (bool, GameState) {
 
 	prev := GetCurrentGameState()
 	switch to {
-	case "start":
+	case "sh_start":
 		if prev != Init {
 			return false, prev
 		}
 		ChangeTo(Running)
-	case "stop":
+	case "sh_stop":
 		if prev == Init {
-			log.Println("ERR")
 			return false, prev
 		}
 		ChangeTo(Init)

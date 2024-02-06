@@ -29,9 +29,7 @@ func main() {
 
 	for upd := range upds {
 		if msg := upd.Message; msg != nil {
-
 			LogMsg(msg)
-
 			if msg.IsCommand() {
 				command.HandleCommand(bot, msg)
 			} else {
