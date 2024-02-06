@@ -1,2 +1,7 @@
-# hikari-bot
-Shiritori telegram bot
+# Hikari-Bot
+Бот для игры в Ширитори\
+Сделан с любовью для клуба Hikari
+
+## Используемые базы выражений
++ [Jisho](https://jisho.org/)
++ [Яркси](http://yarxi.ru/) (в планах)
