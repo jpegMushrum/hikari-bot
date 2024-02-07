@@ -18,7 +18,6 @@ func GetCurrentGameState() GameState {
 	return CurrentGameState
 }
 
-// Returns Either (false, PreviousState) or (true, PreviousState)
 func TryChangeState(to string) (bool, GameState) {
 
 	prev := GetCurrentGameState()
