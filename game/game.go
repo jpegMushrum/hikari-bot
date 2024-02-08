@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	GreetingsString     = "Начинается раунд"
-	EndingString        = "Результаты раунда:"
-	IsNotStartedError   = "Игра не запущена!"
-	AlreadyRunningError = "Игра уже запущена!"
+	GreetingsString     = "ゲームラウンドが始まります!"
+	EndingString        = "ラウンド結果:"
+	IsNotStartedError   = "ゲームはまだ始まっていません!"
+	AlreadyRunningError = "ゲームはもう始まっています！"
 )
 
 func IsRunning() bool {
