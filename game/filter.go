@@ -1,7 +1,7 @@
 package game
 
 import (
-	"bakalover/hikari-bot/lang/dict"
+	"bakalover/hikari-bot/dict"
 	"unicode"
 )
 
