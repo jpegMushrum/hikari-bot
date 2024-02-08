@@ -1,9 +1,14 @@
 package dict
 
-type IResponse interface {
-	GetKana() string
+type Response interface {
+	HasEntries() bool
+	RelevantKana() string
+	RelevantWord() string
+	Kanas() []string
+	Words() []string
+	RelevantSpeechPart() string
 }
 
-type IDictionary[R IResponse] interface {
+type Dictionary[R Response] interface {
 	Search(key string) (R, error)
 }

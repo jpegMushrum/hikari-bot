@@ -1,4 +1,4 @@
-package dict
+package jisho
 
 import (
 	"testing"
@@ -18,24 +18,33 @@ const (
 
 func TestKana(t *testing.T) {
 	dict := JishoDict{}
-	jr, err := dict.Search(KatakanaOnly)
 
-	if jr.GetKana() != KatakanaOnly || err != nil {
+	jr, err := dict.Search(KatakanaOnly)
+	if !jr.HasEntries() || err != nil {
+		t.Fatal(TestFailed)
+	}
+
+	if jr.RelevantKana() != KatakanaOnly {
 		t.Fatal(TestFailed)
 	}
 
 	jr, err = dict.Search(HiraganaOnly)
 
-	if jr.GetKana() != HiraganaOnly || err != nil {
+	if !jr.HasEntries() || err != nil {
+		t.Fatal(TestFailed)
+	}
+
+	if jr.RelevantKana() != HiraganaOnly {
 		t.Fatal(TestFailed)
 	}
 }
 
 func TestBlank(t *testing.T) {
 	dict := JishoDict{}
+
 	jr, err := dict.Search(Blank)
 
-	if jr.GetKana() != Blank || err != nil {
+	if jr.HasEntries() || err != nil {
 		t.Fatal(TestFailed)
 	}
 }
@@ -44,13 +53,21 @@ func TestKanji(t *testing.T) {
 	dict := JishoDict{}
 	jr, err := dict.Search(Kanji1)
 
-	if jr.GetKana() != KanjiReading1 || err != nil {
+	if !jr.HasEntries() || err != nil {
+		t.Fatal(TestFailed)
+	}
+
+	if jr.RelevantKana() != KanjiReading1 {
 		t.Fatal(TestFailed)
 	}
 
 	jr, err = dict.Search(Kanji2)
 
-	if jr.GetKana() != KanjiReading2 || err != nil {
+	if !jr.HasEntries() || err != nil {
+		t.Fatal(TestFailed)
+	}
+
+	if jr.RelevantKana() != KanjiReading2 {
 		t.Fatal(TestFailed)
 	}
 }
