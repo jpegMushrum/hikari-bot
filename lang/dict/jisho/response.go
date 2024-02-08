@@ -1,5 +1,7 @@
 package jisho
 
+import "strings"
+
 type Meta struct {
 	Status int `json:"status"`
 }
@@ -45,7 +47,7 @@ func (jsr *JishoResponse) RelevantWord() string {
 
 // Unsafe
 func (jsr *JishoResponse) RelevantSpeechPart() string {
-	return jsr.Data[0].Senses[0].SpeechParts[0]
+	return strings.ToLower(jsr.Data[0].Senses[0].SpeechParts[0])
 }
 
 // Unsafe
