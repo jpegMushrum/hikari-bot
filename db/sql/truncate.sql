@@ -1,0 +1,2 @@
+TRUNCATE TABLE IF EXISTS players;
+TRUNCATE TABLE IF EXISTS session_words;

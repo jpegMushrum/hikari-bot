@@ -1,38 +1,87 @@
 package game
 
 import (
-	"bakalover/hikari-bot/message"
+	"bakalover/hikari-bot/db"
+	"fmt"
+	"math/rand"
 
 	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 const (
-	GreetingsString     = "ゲームラウンドが始まります!"
-	EndingString        = "ラウンド結果:"
-	IsNotStartedError   = "ゲームはまだ始まっていません!"
-	AlreadyRunningError = "ゲームはもう始まっています！"
+	GreetingsString     = "Раунд начинается!"
+	EndingString        = "Результаты раунда:"
+	IsNotStartedError   = "Игра ещё не началась!"
+	AlreadyRunningError = "Игра уже запущена！"
 )
 
-func IsRunning() bool {
-	return GetCurrentGameState() == Running
+const (
+	word1 = "名詞「めいし」"
+	word2 = "林檎「りんご」"
+	word3 = "塩「しお」"
+	word4 = "人形「にんぎょう」"
+	word5 = "日記「にっき」"
+	word6 = "週末「しゅうまつ」"
+)
+
+func Send(bot *tg.BotAPI, msg string) {
+	bot.Send(tg.NewMessage(Chat(), msg))
 }
 
-func RunGameCommand(bot *tg.BotAPI, chat *tg.Chat, command string) {
-	if ok, state := TryChangeState(command); ok {
+func RandomizeStart(ctx MsgContext) {
+	words := []string{word1, word2, word3, word4, word5, word6}
+	initWord := words[rand.Intn(len(words))]
+	db.AddWord(ctx.DbConn, initWord, "DUMMY_USER")
+	Send(ctx.Bot, fmt.Sprintf("Первое слово: %s", initWord))
+}
+
+func AddPlayer(ctx MsgContext) {
+	db.AddPlayer(ctx.DbConn, ctx.Msg.From.UserName)
+	Send(ctx.Bot, fmt.Sprintf("%s, добро пожаловать в игру!", ctx.Msg.From.UserName))
+}
+
+func PlayerExists(ctx MsgContext) bool {
+	return db.CheckPlayerExistence(ctx.DbConn, ctx.Msg.From.UserName)
+}
+
+func RunGameCommand(ctx MsgContext) {
+	if ok, state := TryChangeState(ctx.Msg.Command()); ok {
 		switch state {
 		case Init:
-			message.SendMessage(bot, chat, GreetingsString)
-			// Init DB, send first word etc.
+			SetChat(ctx.Msg.Chat.ID)
+			db.ExecuteScript(ctx.DbConn, db.CreateScript)
+			AddPlayer(ctx) // Player who pressed !start
+			Send(ctx.Bot, GreetingsString)
+			RandomizeStart(ctx)
 		case Running:
-			message.SendMessage(bot, chat, EndingString)
-			// Send statistics, prize places and reset DB
+			Send(ctx.Bot, EndingString)
+			// FormAndSendStat(dbConn, bot)
+			db.ExecuteScript(ctx.DbConn, db.TruncateScript)
+			db.ExecuteScript(ctx.DbConn, db.DeleteScript)
 		}
 	} else {
 		switch state {
 		case Init:
-			message.SendMessage(bot, chat, IsNotStartedError)
+			Send(ctx.Bot, IsNotStartedError)
 		case Running:
-			message.SendMessage(bot, chat, AlreadyRunningError)
+			Send(ctx.Bot, AlreadyRunningError)
 		}
+	}
+}
+
+func HandleNextWord(ctx MsgContext) {
+	if !PlayerExists(ctx) {
+		AddPlayer(ctx)
+	}
+
+	if IsNextSuitable(ctx.DbConn, ctx.Msg.Text) {
+		lastWord := db.GetLastWord(ctx.DbConn)
+		if GetLastKana(lastWord) == GetLastKana(ctx.Msg.Text) {
+			//Add Next Word
+		} else {
+			//Decline
+		}
+	} else {
+		// Game Round is over
 	}
 }
