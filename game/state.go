@@ -35,12 +35,12 @@ func TryChangeState(to string) (bool, GameState) {
 
 	prev := GetCurrentGameState()
 	switch to {
-	case "!start":
+	case "sh_start":
 		if prev != Init {
 			return false, prev
 		}
 		ChangeTo(Running)
-	case "!stop":
+	case "sh_stop":
 		if prev == Init {
 			return false, prev
 		}

@@ -14,9 +14,9 @@ const (
 )
 
 func ExecuteScript(db *sql.DB, scriptName string) {
-	sqlFile, err := os.ReadFile(fmt.Sprintf("./sql/%s.sql", scriptName))
+	sqlFile, err := os.ReadFile(fmt.Sprintf("./db/sql/%s.sql", scriptName))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	_, err = db.Exec(string(sqlFile))
 	if err != nil {

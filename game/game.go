@@ -51,7 +51,9 @@ func RunGameCommand(ctx MsgContext) {
 		switch state {
 		case Init:
 			SetChat(ctx.Msg.Chat.ID)
+			log.Println("not created db")
 			db.ExecuteScript(ctx.DbConn, db.CreateScript)
+			log.Println("created db")
 			AddPlayer(ctx) // Player who pressed !start
 			Send(ctx.Bot, GreetingsString)
 			RandomizeStart(ctx)
@@ -116,7 +118,7 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 
 	if IsEnd(maybeNextWord) {
 		Send(ctx.Bot, "Раунд завершён!")
-		TryChangeState("!stop") // ???
+		TryChangeState("sh_stop") // ???
 		return
 	}
 }

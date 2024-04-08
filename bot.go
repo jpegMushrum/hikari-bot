@@ -8,10 +8,35 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	_ "github.com/lib/pq"
 )
+
+const (
+	HelpInfo        = "Справка по коммандам:\n/help - Справка по командам\n/sh_start - Начать игру\n/sh_stop - Закончить игру и вывести результаты"
+	Unknown         = "Неизвестная команда"
+	ShiritoryPrefix = "sh_"
+)
+
+func HandleCommand(dbConn *sql.DB, bot *tg.BotAPI, msg *tg.Message) {
+	command := msg.Command()
+
+	if strings.HasPrefix(command, ShiritoryPrefix) {
+		game.RunGameCommand(game.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg})
+		return
+	}
+
+	//Filter non-game commands e.g /help
+	switch command {
+	case "help":
+		bot.Send(tg.NewMessage(msg.Chat.ID, HelpInfo))
+
+	default:
+		bot.Send(tg.NewMessage(msg.Chat.ID, Unknown))
+	}
+}
 
 func main() {
 
@@ -20,13 +45,8 @@ func main() {
 		log.Fatalf("Couldn't initialize bot api!\n%v", err)
 	}
 
-	dbConn, err := sql.Open("postgres",
-		fmt.Sprintf("postgres://%s:%s@%s",
-			os.Getenv("PG_URL"), //localhost:35080/mytest
-			os.Getenv("PG_LOGIN"),
-			os.Getenv("PG_PASS"),
-		),
-	)
+
+	dbConn, err := sql.Open("postgres", fmt.Sprintf("user=%v password=%v dbname=%v", os.Getenv("PG_LOGIN"), os.Getenv("PG_LOGIN"), os.Getenv("PG_DB")))
 
 	if err != nil {
 		log.Fatalf("Couldn't establish connection to PostgreSQL!\n%v", err)
