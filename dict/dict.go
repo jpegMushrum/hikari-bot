@@ -7,6 +7,7 @@ type Response interface {
 	Kanas() []string
 	Words() []string
 	RelevantSpeechPart() string
+	RelevantDefinition() string
 }
 
 type Dictionary[R Response] interface {

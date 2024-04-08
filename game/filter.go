@@ -14,6 +14,7 @@ const (
 	Noun    = "noun"
 )
 
+// Broken -> Fix
 func GetLastKana(s string) int32 { // -> Check small kana
 	for i := len(s) - 1; i >= 0; i-- {
 		if unicode.In(rune(s[i]), unicode.Hiragana, unicode.Katakana, unicode.Han) {
@@ -23,6 +24,7 @@ func GetLastKana(s string) int32 { // -> Check small kana
 	return 0
 }
 
+// Broken -> Fix
 func GetFirstKana(s string) int32 {
 	for i := 0; i < len(s); i++ {
 		if unicode.In(rune(s[i]), unicode.Hiragana, unicode.Katakana, unicode.Han) {
@@ -41,6 +43,7 @@ func IsEnd(word string) bool {
 
 func IsJapanese(word string) bool {
 	for _, char := range word {
+		// -> fix "ー" sign
 		if !unicode.In(char, unicode.Hiragana, unicode.Katakana, unicode.Han) {
 			return false
 		}

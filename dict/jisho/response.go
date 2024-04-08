@@ -13,6 +13,7 @@ type Japanese struct {
 
 type Sense struct {
 	SpeechParts []string `json:"parts_of_speech"`
+	EnglishDef  []string `json:"english_definitions"`
 }
 
 type Data struct {
@@ -29,6 +30,11 @@ type JishoResponse struct {
 
 func (jsr *JishoResponse) HasEntries() bool {
 	return len(jsr.Data) > 0
+}
+
+// Unsafe
+func (jsr *JishoResponse) RelevantDefinition() string {
+	return jsr.Data[0].Senses[0].EnglishDef[0]
 }
 
 // Unsafe

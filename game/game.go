@@ -79,6 +79,7 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 
 	if IsJapSuitable(maybeNextWord) {
 		lastWord := db.GetLastWord(ctx.DbConn)
+		// -> Check double word in b
 		lastWordResponse, err := dict.Search(lastWord) // -> optimize (store kana in db on next retrieve)
 		if err != nil {
 			log.Println(err)
@@ -106,7 +107,7 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 			return
 		}
 
-		if IsEnd(maybeNextWord) {
+		if IsEnd(maybeNextWordKana) {
 			Send(ctx.Bot, "Раунд завершён, введено завершающее слово!")
 			TryChangeState("sh_stop") // ??? -> Better state control
 			db.ShutDown(ctx.DbConn)
@@ -114,9 +115,9 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 		}
 
 		if GetLastKana(lastWordKana) == GetFirstKana(maybeNextWordKana) {
-			Send(ctx.Bot, fmt.Sprintf("%v, cлово подходит!", ctx.Msg.From.FirstName))
+			Send(ctx.Bot, fmt.Sprintf("%v, cлово подходит!\n%s「%s」(%s)", ctx.Msg.From.FirstName, maybeNextWordResponse.RelevantWord(), maybeNextWordKana, maybeNextWordResponse.RelevantDefinition()))
 			db.AddWord(ctx.DbConn, maybeNextWord, ctx.Msg.From.UserName)
-			Send(ctx.Bot, fmt.Sprintf("Следующее слово: %s「%s」", maybeNextWord, maybeNextWordKana)) // -> what if there is no kanji???
+			Send(ctx.Bot, fmt.Sprintf("Следующее слово начинается с:「%v」", GetLastKana(maybeNextWordKana))) // -> what if there is no kanji???, what if we have small kana???
 		} else {
 			Send(ctx.Bot, "Слово нельзя присоединить(")
 			return
