@@ -93,6 +93,13 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 			Send(ctx.Bot, "К сожалению, я не знаю такого слова(")
 			return
 		}
+
+		// Shadow help fix (jisho tries to autocomplete outr words)
+		if maybeNextWordResponse.RelevantWord() != maybeNextWord {
+			Send(ctx.Bot, "К сожалению, я не знаю такого слова(")
+			return
+		}
+
 		if maybeNextWordResponse.RelevantSpeechPart() != Noun {
 			Send(ctx.Bot, "Слово не является существительным!")
 			return
@@ -107,9 +114,9 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 		}
 
 		if GetLastKana(lastWordKana) == GetFirstKana(maybeNextWordKana) {
-			Send(ctx.Bot, fmt.Sprintf("%v, cлово подходит!", ctx.Msg.From.UserName))
+			Send(ctx.Bot, fmt.Sprintf("%v, cлово подходит!", ctx.Msg.From.FirstName))
 			db.AddWord(ctx.DbConn, maybeNextWord, ctx.Msg.From.UserName)
-			Send(ctx.Bot, fmt.Sprintf("Следующее слово: %s", maybeNextWordKana)) // -> kanji 「kana」
+			Send(ctx.Bot, fmt.Sprintf("Следующее слово: %s「%s」", maybeNextWord, maybeNextWordKana)) // -> what if there is no kanji???
 		} else {
 			Send(ctx.Bot, "Слово нельзя присоединить(")
 			return
