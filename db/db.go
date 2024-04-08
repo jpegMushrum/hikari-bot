@@ -26,6 +26,15 @@ func ExecuteScript(db *sql.DB, scriptName string) {
 	}
 }
 
+func Init(db *sql.DB) {
+	ExecuteScript(db, CreateScript)
+}
+
+func ShutDown(db *sql.DB) {
+	ExecuteScript(db, TruncateScript) // Fast Path
+	ExecuteScript(db, DeleteScript)
+}
+
 func AddPlayer(db *sql.DB, username string) {
 	db.Query("INSERT INTO players(username, score) VALUES($1, 0)", username)
 }

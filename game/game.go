@@ -51,17 +51,14 @@ func RunGameCommand(ctx MsgContext) {
 		switch state {
 		case Init:
 			SetChat(ctx.Msg.Chat.ID)
-			log.Println("not created db")
-			db.ExecuteScript(ctx.DbConn, db.CreateScript)
-			log.Println("created db")
-			AddPlayer(ctx) // Player who pressed !start
+			db.Init(ctx.DbConn)
+			AddPlayer(ctx) // Player who pressed sh_start
 			Send(ctx.Bot, GreetingsString)
 			RandomizeStart(ctx)
 		case Running:
 			Send(ctx.Bot, EndingString)
-			// FormAndSendStat(dbConn, bot)
-			db.ExecuteScript(ctx.DbConn, db.TruncateScript)
-			db.ExecuteScript(ctx.DbConn, db.DeleteScript)
+			// FormAndSendStat(ctx)
+			db.ShutDown(ctx.DbConn)
 		}
 	} else {
 		switch state {
@@ -82,7 +79,7 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 
 	if IsJapSuitable(maybeNextWord) {
 		lastWord := db.GetLastWord(ctx.DbConn)
-		lastWordResponse, err := dict.Search(lastWord) // -> optimize store kanac in db
+		lastWordResponse, err := dict.Search(lastWord) // -> optimize (store kana in db on next retrieve)
 		if err != nil {
 			log.Println(err)
 		}
@@ -102,6 +99,13 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 		}
 		maybeNextWordKana := maybeNextWordResponse.RelevantKana()
 
+		if IsEnd(maybeNextWord) {
+			Send(ctx.Bot, "Раунд завершён, введено завершающее слово!")
+			TryChangeState("sh_stop") // ??? -> Better state control
+			db.ShutDown(ctx.DbConn)
+			return
+		}
+
 		if GetLastKana(lastWordKana) == GetFirstKana(maybeNextWordKana) {
 			Send(ctx.Bot, fmt.Sprintf("%v, cлово подходит!", ctx.Msg.From.UserName))
 			db.AddWord(ctx.DbConn, maybeNextWord, ctx.Msg.From.UserName)
@@ -113,12 +117,6 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 
 	} else {
 		Send(ctx.Bot, "Слово не на японском языке!")
-		return
-	}
-
-	if IsEnd(maybeNextWord) {
-		Send(ctx.Bot, "Раунд завершён!")
-		TryChangeState("sh_stop") // ???
 		return
 	}
 }
