@@ -94,17 +94,17 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 			return
 		}
 
-		// Shadow help fix (jisho tries to autocomplete outr words)
-		if maybeNextWordResponse.RelevantWord() != maybeNextWord {
-			Send(ctx.Bot, "К сожалению, я не знаю такого слова(")
-			return
-		}
-
 		if maybeNextWordResponse.RelevantSpeechPart() != Noun {
 			Send(ctx.Bot, "Слово не является существительным!")
 			return
 		}
 		maybeNextWordKana := maybeNextWordResponse.RelevantKana()
+
+		// Shadow help fix (jisho tries to autocomplete outr words)
+		if maybeNextWordResponse.RelevantWord() != maybeNextWord && maybeNextWordKana != maybeNextWord {
+			Send(ctx.Bot, "К сожалению, я не знаю такого слова(")
+			return
+		}
 
 		if IsEnd(maybeNextWord) {
 			Send(ctx.Bot, "Раунд завершён, введено завершающее слово!")
