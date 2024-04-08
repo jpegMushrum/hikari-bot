@@ -1,2 +1,2 @@
-TRUNCATE TABLE IF EXISTS players;
-TRUNCATE TABLE IF EXISTS session_words;
+TRUNCATE TABLE players;
+TRUNCATE TABLE session_words;
