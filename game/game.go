@@ -2,7 +2,9 @@ package game
 
 import (
 	"bakalover/hikari-bot/db"
+	"bakalover/hikari-bot/dict/jisho"
 	"fmt"
+	"log"
 	"math/rand"
 
 	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -69,19 +71,52 @@ func RunGameCommand(ctx MsgContext) {
 	}
 }
 
-func HandleNextWord(ctx MsgContext) {
+func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 	if !PlayerExists(ctx) {
 		AddPlayer(ctx)
 	}
 
-	if IsNextSuitable(ctx.DbConn, ctx.Msg.Text) {
+	maybeNextWord := ctx.Msg.Text
+
+	if IsJapSuitable(maybeNextWord) {
 		lastWord := db.GetLastWord(ctx.DbConn)
-		if GetLastKana(lastWord) == GetLastKana(ctx.Msg.Text) {
-			//Add Next Word
-		} else {
-			//Decline
+		lastWordResponse, err := dict.Search(lastWord) // -> optimize store kanac in db
+		if err != nil {
+			log.Println(err)
 		}
+		lastWordKana := lastWordResponse.RelevantKana()
+
+		maybeNextWordResponse, err := dict.Search(maybeNextWord)
+		if err != nil {
+			log.Println(err)
+		}
+		if !maybeNextWordResponse.HasEntries() {
+			Send(ctx.Bot, "К сожалению, я не знаю такого слова(")
+			return
+		}
+		if maybeNextWordResponse.RelevantSpeechPart() != Noun {
+			Send(ctx.Bot, "Слово не является существительным!")
+			return
+		}
+		maybeNextWordKana := maybeNextWordResponse.RelevantKana()
+
+		if GetLastKana(lastWordKana) == GetFirstKana(maybeNextWordKana) {
+			Send(ctx.Bot, fmt.Sprintf("%v, cлово подходит!", ctx.Msg.From.UserName))
+			db.AddWord(ctx.DbConn, maybeNextWord, ctx.Msg.From.UserName)
+			Send(ctx.Bot, fmt.Sprintf("Следующее слово: %s", maybeNextWordKana)) // -> kanji 「kana」
+		} else {
+			Send(ctx.Bot, "Слово нельзя присоединить(")
+			return
+		}
+
 	} else {
-		// Game Round is over
+		Send(ctx.Bot, "Слово не на японском языке!")
+		return
+	}
+
+	if IsEnd(maybeNextWord) {
+		Send(ctx.Bot, "Раунд завершён!")
+		TryChangeState("!stop") // ???
+		return
 	}
 }

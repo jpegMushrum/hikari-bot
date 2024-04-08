@@ -2,6 +2,7 @@ package main
 
 import (
 	"bakalover/hikari-bot/db"
+	"bakalover/hikari-bot/dict/jisho"
 	"bakalover/hikari-bot/game"
 	"database/sql"
 	"fmt"
@@ -21,7 +22,7 @@ func main() {
 
 	dbConn, err := sql.Open("postgres",
 		fmt.Sprintf("postgres://%s:%s@%s",
-			os.Getenv("PG_URL"), //localhost:35080/studs
+			os.Getenv("PG_URL"), //localhost:35080/mytest
 			os.Getenv("PG_LOGIN"),
 			os.Getenv("PG_PASS"),
 		),
@@ -38,6 +39,8 @@ func main() {
 	// Strand | MPSC
 	upds := bot.GetUpdatesChan(uCfg)
 
+	dict := &jisho.JishoDict{}
+
 	for upd := range upds {
 		if msg := upd.Message; msg != nil {
 			log.Printf("User: %v, Message: %v", msg.From.UserName, msg.Text)
@@ -45,9 +48,7 @@ func main() {
 				HandleCommand(dbConn, bot, msg)
 			} else {
 				if game.Chat() == msg.Chat.ID && game.IsRunning() {
-					game.HandleNextWord(game.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg})
-					// Check if user is new and add him
-					// Else go and check word for chaining etc.
+					game.HandleNextWord(game.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg}, dict)
 				}
 			}
 		}

@@ -40,7 +40,7 @@ func CheckPlayerExistence(db *sql.DB, username string) bool {
 
 func AddWord(db *sql.DB, word string, from string) {
 	db.Query("INSERT INTO session_words(word, username) VALUES($1, $2)", word, from)
-	db.Query("UPDATE players SET score = score + 1 WHERE username = $1", from)
+	db.Query("UPDATE players SET score = score + 1 WHERE username = $1", from) // Postgres trigger???
 }
 
 func GetLastWord(db *sql.DB) string {

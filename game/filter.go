@@ -2,7 +2,6 @@ package game
 
 import (
 	"bakalover/hikari-bot/dict"
-	"database/sql"
 	"strings"
 	"unicode"
 
@@ -15,7 +14,7 @@ const (
 	Noun    = "noun"
 )
 
-func GetLastKana(s string) int32 {
+func GetLastKana(s string) int32 { // -> Check small kana
 	for i := len(s) - 1; i >= 0; i-- {
 		if unicode.In(rune(s[i]), unicode.Hiragana, unicode.Katakana, unicode.Han) {
 			return rune(s[i])
@@ -24,20 +23,20 @@ func GetLastKana(s string) int32 {
 	return 0
 }
 
-// Checks if word is bassically in Japanese and have suitable ending
-func IsNextSuitable(db *sql.DB, word string) bool {
-
-	if !IsJapSuitable(word) {
-		return false
+func GetFirstKana(s string) int32 {
+	for i := 0; i < len(s); i++ {
+		if unicode.In(rune(s[i]), unicode.Hiragana, unicode.Katakana, unicode.Han) {
+			return rune(s[i])
+		}
 	}
+	return 0
+}
 
+func IsEnd(word string) bool {
 	if strings.HasSuffix(word, DeadEnd) || strings.HasSuffix(word, LongEnd) {
-		return false
+		return true
 	}
-
-	return true
-	// Check small kana on end
-	// Get first word from db and check chaining
+	return false
 }
 
 func IsJapanese(word string) bool {
