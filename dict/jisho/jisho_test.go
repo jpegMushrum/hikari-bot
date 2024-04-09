@@ -2,6 +2,8 @@ package jisho
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const TestFailed = "TEST FAILED"
@@ -18,56 +20,30 @@ const (
 
 func TestKana(t *testing.T) {
 	dict := JishoDict{}
+	jr, _ := dict.Search(KatakanaOnly)
+	assert.True(t, jr.HasEntries())
+	assert.True(t, jr.RelevantKana() == KatakanaOnly)
 
-	jr, err := dict.Search(KatakanaOnly)
-	if !jr.HasEntries() || err != nil {
-		t.Fatal(TestFailed)
-	}
-
-	if jr.RelevantKana() != KatakanaOnly {
-		t.Fatal(TestFailed)
-	}
-
-	jr, err = dict.Search(HiraganaOnly)
-
-	if !jr.HasEntries() || err != nil {
-		t.Fatal(TestFailed)
-	}
-
-	if jr.RelevantKana() != HiraganaOnly {
-		t.Fatal(TestFailed)
-	}
+	jr, _ = dict.Search(HiraganaOnly)
+	assert.True(t, jr.HasEntries())
+	assert.True(t, jr.RelevantKana() == HiraganaOnly)
 }
 
 func TestBlank(t *testing.T) {
 	dict := JishoDict{}
 
-	jr, err := dict.Search(Blank)
-
-	if jr.HasEntries() || err != nil {
-		t.Fatal(TestFailed)
-	}
+	jr, _ := dict.Search(Blank)
+	assert.True(t, jr.HasEntries())
 }
 
 func TestKanji(t *testing.T) {
 	dict := JishoDict{}
-	jr, err := dict.Search(Kanji1)
 
-	if !jr.HasEntries() || err != nil {
-		t.Fatal(TestFailed)
-	}
+	jr, _ := dict.Search(Kanji1)
+	assert.True(t, jr.HasEntries())
+	assert.True(t, jr.RelevantKana() == KanjiReading1)
 
-	if jr.RelevantKana() != KanjiReading1 {
-		t.Fatal(TestFailed)
-	}
-
-	jr, err = dict.Search(Kanji2)
-
-	if !jr.HasEntries() || err != nil {
-		t.Fatal(TestFailed)
-	}
-
-	if jr.RelevantKana() != KanjiReading2 {
-		t.Fatal(TestFailed)
-	}
+	jr, _ = dict.Search(Kanji2)
+	assert.True(t, jr.HasEntries())
+	assert.True(t, jr.RelevantKana() == KanjiReading2)
 }

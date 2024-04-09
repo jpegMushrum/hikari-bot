@@ -1,12 +1,12 @@
 package game
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestKana(t *testing.T) {
-	if GetFirstKana("へんたい") != 'へ' {
-		t.Fatal()
-	}
-	if GetFirstKana("キス") != 'キ' {
-		t.Fatal()
-	}
+	assert.Equal(t, GetFirstKana("へんたい"), 'へ')
+	assert.Equal(t, GetFirstKana("キス"), 'キ')
 }
