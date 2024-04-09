@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	_ "github.com/lib/pq"
@@ -38,6 +39,23 @@ func HandleCommand(dbConn *gorm.DB, bot *tg.BotAPI, msg *tg.Message) {
 	}
 }
 
+func connectToPostgres(dsn string) (*gorm.DB, error) {
+	const maxRetries = 3
+	const delayBetweenRetries = time.Second
+
+	var dbConn *gorm.DB
+	var err error
+	for i := 0; i < maxRetries; i++ {
+		dbConn, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err == nil {
+			return dbConn, nil
+		}
+		log.Printf("Couldn't establish connection to PostgreSQL (attempt %d), retrying in %v...\n%v", i+1, delayBetweenRetries, err)
+		time.Sleep(delayBetweenRetries)
+	}
+	return nil, err
+}
+
 func main() {
 
 	bot, err := tg.NewBotAPI(os.Getenv("HIKARI_BOT_TOKEN"))
@@ -45,9 +63,10 @@ func main() {
 		log.Fatalf("Couldn't initialize bot api!\n%v", err)
 	}
 
-	dsn := fmt.Sprintf("host=localhost user=%v password=%v dbname=%v port=5432 sslmode=disable", os.Getenv("PG_LOGIN"), os.Getenv("PG_LOGIN"), os.Getenv("PG_DB"))
-	dbConn, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	dsn := fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=5432 sslmode=disable",
+		os.Getenv("PG_HOST"), os.Getenv("PG_LOGIN"), os.Getenv("PG_PASSWORD"), os.Getenv("PG_DB"))
 
+	dbConn, err := connectToPostgres(dsn)
 	if err != nil {
 		log.Fatalf("Couldn't establish connection to PostgreSQL!\n%v", err)
 	}
