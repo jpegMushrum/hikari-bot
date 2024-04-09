@@ -10,6 +10,7 @@ type Response interface {
 	RelevantDefinition() string
 }
 
+///???
 type Dictionary[R Response] interface {
 	Search(key string) (R, error)
 }

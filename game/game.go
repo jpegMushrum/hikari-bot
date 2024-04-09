@@ -18,12 +18,12 @@ const (
 )
 
 const (
-	word1 = "名詞「めいし」"
-	word2 = "林檎「りんご」"
-	word3 = "塩「しお」"
-	word4 = "人形「にんぎょう」"
-	word5 = "日記「にっき」"
-	word6 = "週末「しゅうまつ」"
+	word1 = "めいし"
+	word2 = "りんご"
+	word3 = "しお"
+	word4 = "にんぎょう"
+	word5 = "にっき"
+	word6 = "しゅうまつ"
 )
 
 func Send(bot *tg.BotAPI, msg string) {
@@ -38,8 +38,9 @@ func RandomizeStart(ctx MsgContext) {
 }
 
 func AddPlayer(ctx MsgContext) {
-	db.AddPlayer(ctx.DbConn, ctx.Msg.From.UserName)
-	Send(ctx.Bot, fmt.Sprintf("%s, добро пожаловать в игру!", ctx.Msg.From.UserName))
+	from := ctx.Msg.From
+	db.AddPlayer(ctx.DbConn, from.UserName)
+	Send(ctx.Bot, fmt.Sprintf("%s, добро пожаловать в игру!", from.FirstName))
 }
 
 func PlayerExists(ctx MsgContext) bool {
@@ -79,14 +80,19 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 
 	if IsJapSuitable(maybeNextWord) {
 		lastWord := db.GetLastWord(ctx.DbConn)
-		// -> Check double word in b
+
 		lastWordResponse, err := dict.Search(lastWord) // -> optimize (store kana in db on next retrieve)
 		if err != nil {
 			log.Println(err)
 		}
 		lastWordKana := lastWordResponse.RelevantKana()
 
+		log.Println(lastWord)
+		log.Println(lastWordResponse.RelevantKana())
+
 		maybeNextWordResponse, err := dict.Search(maybeNextWord)
+		log.Println(maybeNextWord)
+		log.Println(maybeNextWordResponse.RelevantKana())
 		if err != nil {
 			log.Println(err)
 		}
@@ -114,10 +120,15 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 			return
 		}
 
+		if db.CheckWordExistence(ctx.DbConn, maybeNextWord) {
+			Send(ctx.Bot, "Такое слово уже было")
+			return
+		}
+
 		if GetLastKana(lastWordKana) == GetFirstKana(maybeNextWordKana) {
 			Send(ctx.Bot, fmt.Sprintf("%v, cлово подходит!\n%s「%s」(%s)", ctx.Msg.From.FirstName, maybeNextWordResponse.RelevantWord(), maybeNextWordKana, maybeNextWordResponse.RelevantDefinition()))
 			db.AddWord(ctx.DbConn, maybeNextWord, ctx.Msg.From.UserName)
-			Send(ctx.Bot, fmt.Sprintf("Следующее слово начинается с:「%v」", GetLastKana(maybeNextWordKana))) // -> what if there is no kanji???, what if we have small kana???
+			Send(ctx.Bot, fmt.Sprintf("Следующее слово начинается с:「%c」", GetLastKana(maybeNextWordKana))) // -> what if there is no kanji???, what if we have small kana???
 		} else {
 			Send(ctx.Bot, "Слово нельзя присоединить(")
 			return

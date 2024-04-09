@@ -1,13 +1,12 @@
 package game
 
 import (
-	"database/sql"
-
 	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"gorm.io/gorm"
 )
 
 type MsgContext struct {
-	DbConn *sql.DB
+	DbConn *gorm.DB
 	Bot    *tg.BotAPI
 	Msg    *tg.Message
 }

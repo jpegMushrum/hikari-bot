@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bakalover/hikari-bot/db"
 	"bakalover/hikari-bot/dict/jisho"
 	"bakalover/hikari-bot/game"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -12,6 +10,8 @@ import (
 
 	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	_ "github.com/lib/pq"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 const (
@@ -20,7 +20,7 @@ const (
 	ShiritoryPrefix = "sh_"
 )
 
-func HandleCommand(dbConn *sql.DB, bot *tg.BotAPI, msg *tg.Message) {
+func HandleCommand(dbConn *gorm.DB, bot *tg.BotAPI, msg *tg.Message) {
 	command := msg.Command()
 
 	if strings.HasPrefix(command, ShiritoryPrefix) {
@@ -45,8 +45,8 @@ func main() {
 		log.Fatalf("Couldn't initialize bot api!\n%v", err)
 	}
 
-
-	dbConn, err := sql.Open("postgres", fmt.Sprintf("user=%v password=%v dbname=%v", os.Getenv("PG_LOGIN"), os.Getenv("PG_LOGIN"), os.Getenv("PG_DB")))
+	dsn := fmt.Sprintf("host=localhost user=%v password=%v dbname=%v port=5432 sslmode=disable", os.Getenv("PG_LOGIN"), os.Getenv("PG_LOGIN"), os.Getenv("PG_DB"))
+	dbConn, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	if err != nil {
 		log.Fatalf("Couldn't establish connection to PostgreSQL!\n%v", err)
@@ -73,6 +73,4 @@ func main() {
 			}
 		}
 	}
-
-	db.ExecuteScript(dbConn, "delete")
 }
