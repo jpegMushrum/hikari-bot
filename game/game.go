@@ -87,12 +87,7 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 		}
 		lastWordKana := lastWordResponse.RelevantKana()
 
-		log.Println(lastWord)
-		log.Println(lastWordResponse.RelevantKana())
-
 		maybeNextWordResponse, err := dict.Search(maybeNextWord)
-		log.Println(maybeNextWord)
-		log.Println(maybeNextWordResponse.RelevantKana())
 		if err != nil {
 			log.Println(err)
 		}

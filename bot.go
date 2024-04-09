@@ -55,6 +55,9 @@ func main() {
 	// bot.Debug = true
 
 	uCfg := tg.NewUpdate(0) // No timeout (or maybe specify later)
+	uCfg.Timeout = 60
+	uCfg.AllowedUpdates = []string{"message"}
+
 
 	// Strand | MPSC
 	upds := bot.GetUpdatesChan(uCfg)
@@ -67,6 +70,8 @@ func main() {
 			if msg.IsCommand() {
 				HandleCommand(dbConn, bot, msg)
 			} else {
+				log.Println(game.Chat())
+				log.Println(msg.Chat.ID)
 				if game.Chat() == msg.Chat.ID && game.IsRunning() {
 					game.HandleNextWord(game.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg}, dict)
 				}
