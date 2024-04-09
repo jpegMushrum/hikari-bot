@@ -33,7 +33,7 @@ func TestBlank(t *testing.T) {
 	dict := JishoDict{}
 
 	jr, _ := dict.Search(Blank)
-	assert.True(t, jr.HasEntries())
+	assert.False(t, jr.HasEntries())
 }
 
 func TestKanji(t *testing.T) {
