@@ -24,11 +24,10 @@ func GetLastKana(s string) int32 { // -> Check small kana
 	return 0
 }
 
-// Broken -> Fix
 func GetFirstKana(s string) int32 {
-	for i := 0; i < len(s); i++ {
-		if unicode.In(rune(s[i]), unicode.Hiragana, unicode.Katakana, unicode.Han) {
-			return rune(s[i])
+	for _, char := range s {
+		if unicode.In(char, unicode.Hiragana, unicode.Katakana, unicode.Han) {
+			return char
 		}
 	}
 	return 0
