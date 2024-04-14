@@ -43,7 +43,6 @@ var KatakanaToHiragana = map[rune]rune{
 	'パ': 'ぱ', 'ピ': 'ぴ', 'プ': 'ぷ', 'ペ': 'ぺ', 'ポ': 'ぽ',
 }
 
-
 func ToHiragana(kana rune) rune {
 	if unicode.In(kana, unicode.Hiragana) {
 		return kana
@@ -155,7 +154,7 @@ func IsEnd(word string) bool {
 
 func IsJapanese(word string) bool {
 	for _, char := range word {
-		if !unicode.In(char, unicode.Hiragana, unicode.Katakana, unicode.Han) {
+		if !unicode.In(char, unicode.Hiragana, unicode.Katakana, unicode.Han) && char != 'ー' {
 			return false
 		}
 	}
