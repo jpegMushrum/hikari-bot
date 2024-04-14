@@ -53,7 +53,7 @@ func RunGameCommand(ctx util.MsgContext) {
 			RandomizeStart(ctx)
 		case Running:
 			util.Reply(ctx, EndingString)
-			// FormAndSendStat(ctx)
+			// -> Send Stats
 			db.ShutDown(ctx.DbConn)
 		}
 	} else {
@@ -106,6 +106,7 @@ func HandleNextWord(ctx util.MsgContext, dict *jisho.JishoDict) {
 		if IsEnd(maybeNextWordKana) {
 			util.Reply(ctx, "Раунд завершён, введено завершающее слово!")
 			ExchangeState("sh_stop") // ??? -> Better state control
+			// -> Send Stats
 			db.ShutDown(ctx.DbConn)
 			return
 		}
