@@ -48,7 +48,7 @@ func PlayerExists(ctx MsgContext) bool {
 }
 
 func RunGameCommand(ctx MsgContext) {
-	if ok, state := TryChangeState(ctx.Msg.Command()); ok {
+	if ok, state := ExchangeState(ctx.Msg.Command()); ok {
 		switch state {
 		case Init:
 			SetChat(ctx.Msg.Chat.ID)
@@ -110,7 +110,7 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 
 		if IsEnd(maybeNextWordKana) {
 			Send(ctx.Bot, "Раунд завершён, введено завершающее слово!")
-			TryChangeState("sh_stop") // ??? -> Better state control
+			ExchangeState("sh_stop") // ??? -> Better state control
 			db.ShutDown(ctx.DbConn)
 			return
 		}

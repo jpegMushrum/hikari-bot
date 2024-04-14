@@ -1,5 +1,7 @@
 package game
 
+import "log"
+
 type GameState uint8
 
 const (
@@ -31,10 +33,10 @@ func IsRunning() bool {
 	return GetCurrentGameState() == Running
 }
 
-func TryChangeState(to string) (bool, GameState) {
+func ExchangeState(command string) (bool, GameState) {
 
 	prev := GetCurrentGameState()
-	switch to {
+	switch command {
 	case "sh_start":
 		if prev != Init {
 			return false, prev
@@ -45,6 +47,8 @@ func TryChangeState(to string) (bool, GameState) {
 			return false, prev
 		}
 		ChangeTo(Init)
+	default:
+		log.Fatal("Unexpected game command on state changing!")
 		// case "suspend":
 		// 	if prev != Running {
 		// 		return false, prev
