@@ -17,6 +17,12 @@ type Player struct {
 }
 
 func Init(db *gorm.DB) {
+	if db.Migrator().HasTable(&Word{}) {
+		db.Migrator().DropTable(&Word{})
+	}
+	if db.Migrator().HasTable(&Player{}) {
+		db.Migrator().DropTable(&Player{})
+	}
 	db.AutoMigrate(&Word{})
 	db.AutoMigrate(&Player{})
 }
