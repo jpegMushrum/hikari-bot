@@ -26,4 +26,10 @@ func TestKana(t *testing.T) {
 	assert.Equal(t, GetLastKana("しゅしょ"), 'よ')
 	assert.Equal(t, GetFirstKana("ラ"), GetLastKana("ラ"))
 	assert.Equal(t, GetLastKana("ラジオ"), GetFirstKana("おにぎり"))
+	assert.Equal(t, GetLastKana("ラジォ"), GetFirstKana("おにぎり"))
+	assert.Equal(t, GetLastKana("ラジぉ"), GetFirstKana("オにぎり"))
+	assert.Equal(t, GetLastKana("ジジ"), GetFirstKana("じごく"))
+	assert.Equal(t, GetLastKana("パパ"), GetFirstKana("ぱら"))
+
+
 }
