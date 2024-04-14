@@ -75,14 +75,13 @@ func MapSmallToBig(kana rune) rune {
 	return 0
 }
 
-// Broken -> Fix
 func GetLastKana(s string) int32 {
 	var ans rune = 0
 
 outter_loop:
 	for i := len(s) - 1; i >= 0; i-- {
 		for _, char := range s[i:] { // Oh shit
-			if char == 'ー' { // Doesnt work with Range tables
+			if char == 'ー' { // Doesn't work with Range tables
 				return 'ー'
 			}
 			if unicode.In(char, unicode.Hiragana, unicode.Katakana, unicode.Han) {
@@ -100,7 +99,7 @@ outter_loop:
 
 func GetFirstKana(s string) int32 {
 	for _, char := range s {
-		if char == 'ー' { // Doesnt work with Range tables
+		if char == 'ー' { // Doesn't work with Range tables
 			return 'ー'
 		}
 		if unicode.In(char, unicode.Hiragana, unicode.Katakana, unicode.Han) {

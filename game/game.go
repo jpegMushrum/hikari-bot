@@ -3,11 +3,10 @@ package game
 import (
 	"bakalover/hikari-bot/db"
 	"bakalover/hikari-bot/dict/jisho"
+	"bakalover/hikari-bot/util"
 	"fmt"
 	"log"
 	"math/rand"
-
-	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 const (
@@ -26,52 +25,48 @@ const (
 	word6 = "しゅうまつ"
 )
 
-func Send(bot *tg.BotAPI, msg string) {
-	bot.Send(tg.NewMessage(Chat(), msg))
-}
-
-func RandomizeStart(ctx MsgContext) {
+func RandomizeStart(ctx util.MsgContext) {
 	words := []string{word1, word2, word3, word4, word5, word6}
 	initWord := words[rand.Intn(len(words))]
 	db.AddWord(ctx.DbConn, initWord, "DUMMY_USER")
-	Send(ctx.Bot, fmt.Sprintf("Первое слово: %s", initWord))
+	util.Reply(ctx, fmt.Sprintf("Первое слово: %s", initWord))
 }
 
-func AddPlayer(ctx MsgContext) {
+func AddPlayer(ctx util.MsgContext) {
 	from := ctx.Msg.From
 	db.AddPlayer(ctx.DbConn, from.UserName)
-	Send(ctx.Bot, fmt.Sprintf("%s, добро пожаловать в игру!", from.FirstName))
+	util.Reply(ctx, fmt.Sprintf("%s, добро пожаловать в игру!", from.FirstName))
 }
 
-func PlayerExists(ctx MsgContext) bool {
+func PlayerExists(ctx util.MsgContext) bool {
 	return db.CheckPlayerExistence(ctx.DbConn, ctx.Msg.From.UserName)
 }
 
-func RunGameCommand(ctx MsgContext) {
+func RunGameCommand(ctx util.MsgContext) {
 	if ok, state := ExchangeState(ctx.Msg.Command()); ok {
 		switch state {
 		case Init:
 			SetChat(ctx.Msg.Chat.ID)
 			db.Init(ctx.DbConn)
 			AddPlayer(ctx) // Player who pressed sh_start
-			Send(ctx.Bot, GreetingsString)
+			util.Reply(ctx, GreetingsString)
 			RandomizeStart(ctx)
 		case Running:
-			Send(ctx.Bot, EndingString)
+			util.Reply(ctx, EndingString)
 			// FormAndSendStat(ctx)
 			db.ShutDown(ctx.DbConn)
 		}
 	} else {
 		switch state {
 		case Init:
-			Send(ctx.Bot, IsNotStartedError)
+			util.Reply(ctx, IsNotStartedError)
 		case Running:
-			Send(ctx.Bot, AlreadyRunningError)
+			util.Reply(ctx, AlreadyRunningError)
 		}
 	}
 }
 
-func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
+func HandleNextWord(ctx util.MsgContext, dict *jisho.JishoDict) {
 	if !PlayerExists(ctx) {
 		AddPlayer(ctx)
 	}
@@ -92,45 +87,45 @@ func HandleNextWord(ctx MsgContext, dict *jisho.JishoDict) {
 			log.Println(err)
 		}
 		if !maybeNextWordResponse.HasEntries() {
-			Send(ctx.Bot, "К сожалению, я не знаю такого слова(")
+			util.Reply(ctx, "К сожалению, я не знаю такого слова(")
 			return
 		}
 
 		if maybeNextWordResponse.RelevantSpeechPart() != Noun {
-			Send(ctx.Bot, "Слово не является существительным!")
+			util.Reply(ctx, "Слово не является существительным!")
 			return
 		}
 		maybeNextWordKana := maybeNextWordResponse.RelevantKana()
 
 		// Shadow help fix (jisho tries to autocomplete outr words)
 		if maybeNextWordResponse.RelevantWord() != maybeNextWord && maybeNextWordKana != maybeNextWord {
-			Send(ctx.Bot, "К сожалению, я не знаю такого слова(")
+			util.Reply(ctx, "К сожалению, я не знаю такого слова(")
 			return
 		}
 
 		if IsEnd(maybeNextWordKana) {
-			Send(ctx.Bot, "Раунд завершён, введено завершающее слово!")
+			util.Reply(ctx, "Раунд завершён, введено завершающее слово!")
 			ExchangeState("sh_stop") // ??? -> Better state control
 			db.ShutDown(ctx.DbConn)
 			return
 		}
 
 		if db.CheckWordExistence(ctx.DbConn, maybeNextWord) {
-			Send(ctx.Bot, "Такое слово уже было")
+			util.Reply(ctx, "Такое слово уже было")
 			return
 		}
 
 		if GetLastKana(lastWordKana) == GetFirstKana(maybeNextWordKana) {
-			Send(ctx.Bot, fmt.Sprintf("%v, cлово подходит!\n%s「%s」(%s)", ctx.Msg.From.FirstName, maybeNextWordResponse.RelevantWord(), maybeNextWordKana, maybeNextWordResponse.RelevantDefinition()))
+			util.Reply(ctx, fmt.Sprintf("%v, cлово подходит!\n%s「%s」(%s)", ctx.Msg.From.FirstName, maybeNextWordResponse.RelevantWord(), maybeNextWordKana, maybeNextWordResponse.RelevantDefinition()))
 			db.AddWord(ctx.DbConn, maybeNextWord, ctx.Msg.From.UserName)
-			Send(ctx.Bot, fmt.Sprintf("Следующее слово начинается с:「%c」", GetLastKana(maybeNextWordKana))) // -> what if there is no kanji???, what if we have small kana???
+			util.Reply(ctx, fmt.Sprintf("Следующее слово начинается с:「%c」", GetLastKana(maybeNextWordKana))) // -> what if there is no kanji???, what if we have small kana???
 		} else {
-			Send(ctx.Bot, "Слово нельзя присоединить(")
+			util.Reply(ctx, "Слово нельзя присоединить(")
 			return
 		}
 
 	} else {
-		Send(ctx.Bot, "Слово не на японском языке!")
+		util.Reply(ctx, "Слово не на японском языке!")
 		return
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bakalover/hikari-bot/dict/jisho"
 	"bakalover/hikari-bot/game"
+	"bakalover/hikari-bot/util"
 	"fmt"
 	"log"
 	"os"
@@ -25,17 +26,17 @@ func HandleCommand(dbConn *gorm.DB, bot *tg.BotAPI, msg *tg.Message) {
 	command := msg.Command()
 
 	if strings.HasPrefix(command, ShiritoryPrefix) {
-		game.RunGameCommand(game.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg})
+		game.RunGameCommand(util.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg})
 		return
 	}
 
 	//Filter non-game commands e.g /help
 	switch command {
 	case "help":
-		bot.Send(tg.NewMessage(msg.Chat.ID, HelpInfo))
+		util.Reply(util.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg}, HelpInfo)
 
 	default:
-		bot.Send(tg.NewMessage(msg.Chat.ID, Unknown))
+		util.Reply(util.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg}, Unknown)
 	}
 }
 
@@ -64,8 +65,7 @@ func main() {
 	}
 
 	dsn := fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=5432 sslmode=disable",
-		os.Getenv("PG_HOST"), os.Getenv("PG_LOGIN"), os.Getenv("PG_PASSWORD"), os.Getenv("PG_DB"))
-
+		os.Getenv("PG_HOST"), os.Getenv("PG_LOGIN"), os.Getenv("PG_PASS"), os.Getenv("PG_DB"))
 	dbConn, err := connectToPostgres(dsn)
 	if err != nil {
 		log.Fatalf("Couldn't establish connection to PostgreSQL!\n%v", err)
@@ -76,7 +76,6 @@ func main() {
 	uCfg := tg.NewUpdate(0) // No timeout (or maybe specify later)
 	uCfg.Timeout = 60
 	uCfg.AllowedUpdates = []string{"message"}
-
 
 	// Strand | MPSC
 	upds := bot.GetUpdatesChan(uCfg)
@@ -92,7 +91,7 @@ func main() {
 				log.Println(game.Chat())
 				log.Println(msg.Chat.ID)
 				if game.Chat() == msg.Chat.ID && game.IsRunning() {
-					game.HandleNextWord(game.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg}, dict)
+					game.HandleNextWord(util.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg}, dict)
 				}
 			}
 		}
