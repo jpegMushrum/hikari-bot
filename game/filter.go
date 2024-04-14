@@ -2,6 +2,7 @@ package game
 
 import (
 	"bakalover/hikari-bot/dict"
+	"log"
 	"strings"
 	"unicode"
 
@@ -17,6 +18,31 @@ const (
 var SmallKana = []rune{
 	'ォ', 'ぉ', 'ァ', 'ぁ', 'ゥ', 'ぅ', 'ェ',
 	'ぇ', 'ィ', 'ぃ', 'ャ', 'ゃ', 'ョ', 'ょ',
+}
+
+var KatakanaToHiragana = map[rune]rune{
+	'ア': 'あ', 'イ': 'い', 'ウ': 'う', 'エ': 'え', 'オ': 'お',
+	'カ': 'か', 'キ': 'き', 'ク': 'く', 'ケ': 'け', 'コ': 'こ',
+	'サ': 'さ', 'シ': 'し', 'ス': 'す', 'セ': 'せ', 'ソ': 'そ',
+	'タ': 'た', 'チ': 'ち', 'ツ': 'つ', 'テ': 'て', 'ト': 'と',
+	'ナ': 'な', 'ニ': 'に', 'ヌ': 'ぬ', 'ネ': 'ね', 'ノ': 'の',
+	'ハ': 'は', 'ヒ': 'ひ', 'フ': 'ふ', 'ヘ': 'へ', 'ホ': 'ほ',
+	'マ': 'ま', 'ミ': 'み', 'ム': 'む', 'メ': 'め', 'モ': 'も',
+	'ヤ': 'や', 'ユ': 'ゆ', 'ヨ': 'よ',
+	'ラ': 'ら', 'リ': 'り', 'ル': 'る', 'レ': 'れ', 'ロ': 'ろ',
+	'ワ': 'わ', 'ヲ': 'を', 'ン': 'ん',
+}
+
+func ToHiragana(kana rune) rune {
+	if unicode.In(kana, unicode.Hiragana) {
+		return kana
+	} else if unicode.In(kana, unicode.Katakana) {
+		if converted, ok := KatakanaToHiragana[kana]; ok {
+			return converted
+		}
+	}
+	log.Println("input is not a hiragana or katakana")
+	return 0
 }
 
 func IsSmall(kana rune) bool {
@@ -85,7 +111,7 @@ outter_loop:
 				return 'ー'
 			}
 			if unicode.In(char, unicode.Hiragana, unicode.Katakana, unicode.Han) {
-				ans = char
+				ans = ToHiragana(char)
 				break outter_loop
 			}
 		}
@@ -103,7 +129,7 @@ func GetFirstKana(s string) int32 {
 			return 'ー'
 		}
 		if unicode.In(char, unicode.Hiragana, unicode.Katakana, unicode.Han) {
-			return char
+			return ToHiragana(char)
 		}
 	}
 	return 0
