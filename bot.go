@@ -17,9 +17,34 @@ import (
 )
 
 const (
-	HelpInfo        = "Справка по коммандам:\n/help - Справка по командам\n/sh_start - Начать игру\n/sh_stop - Закончить игру и вывести результаты"
+	HelpInfo = `
+	Справка по коммандам:
+	/help - Справка по командам
+	/rules - Правила игры
+	/sh_start - Начать игру
+	/sh_stop - Закончить игру и вывести результаты`
+
 	Unknown         = "Неизвестная команда"
 	ShiritoryPrefix = "sh_"
+	Rules           = `
+	Правила:
+	1. Два или более человек по очереди играют.
+
+	2. Допускаются только существительные.
+
+	3. Игрок, который выбирает слово, оканчивающееся на ん, 
+	проигрывает игру, поскольку японское слово не начинается с 
+	этого символа.
+	
+	4. Слова не могут повторяться.
+	Пример: 
+	-> сакура	(さくら)	
+	-> радио    (ラジオ) 	
+	-> онигири  (おにぎり)	
+	-> рису 	(りす)		
+	-> сумо 	(すもう
+	-> удон 	(うどん)
+	Дополнительно: для удобства можно вводить слова как в форме кандзи так и в чистой кане`
 )
 
 func HandleCommand(dbConn *gorm.DB, bot *tg.BotAPI, msg *tg.Message) {
@@ -34,6 +59,8 @@ func HandleCommand(dbConn *gorm.DB, bot *tg.BotAPI, msg *tg.Message) {
 	switch command {
 	case "help":
 		util.Reply(util.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg}, HelpInfo)
+	case "rules":
+		util.Reply(util.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg}, Rules)
 
 	default:
 		util.Reply(util.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg}, Unknown)
