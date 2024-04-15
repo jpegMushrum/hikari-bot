@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"sort"
 )
 
 const (
@@ -34,7 +35,7 @@ func RandomizeStart(ctx util.MsgContext) {
 
 func AddPlayer(ctx util.MsgContext) {
 	from := ctx.Msg.From
-	db.AddPlayer(ctx.DbConn, from.UserName)
+	db.AddPlayer(ctx.DbConn, from.UserName, from.FirstName)
 	util.Reply(ctx, fmt.Sprintf("%s, добро пожаловать в игру!", from.FirstName))
 }
 
@@ -53,7 +54,7 @@ func RunGameCommand(ctx util.MsgContext) {
 			RandomizeStart(ctx)
 		case Running:
 			util.Reply(ctx, EndingString)
-			// -> Send Stats
+			FormAndSendStats(ctx)
 			db.ShutDown(ctx.DbConn)
 		}
 	} else {
@@ -76,10 +77,13 @@ func HandleNextWord(ctx util.MsgContext, dict *jisho.JishoDict) {
 	if IsJapSuitable(maybeNextWord) {
 		lastWord := db.GetLastWord(ctx.DbConn)
 
+		log.Println("Last Word: ", lastWord)
+
 		lastWordResponse, err := dict.Search(lastWord) // -> optimize (store kana in db on next retrieve)
 		if err != nil {
 			log.Println(err)
 		}
+		log.Println("Last word dict response: ", lastWordResponse)
 		lastWordKana := lastWordResponse.RelevantKana()
 
 		maybeNextWordResponse, err := dict.Search(maybeNextWord)
@@ -106,7 +110,7 @@ func HandleNextWord(ctx util.MsgContext, dict *jisho.JishoDict) {
 		if IsEnd(maybeNextWordKana) {
 			util.Reply(ctx, "Раунд завершён, введено завершающее слово!")
 			ExchangeState("sh_stop") // ??? -> Better state control
-			// -> Send Stats
+			FormAndSendStats(ctx)
 			db.ShutDown(ctx.DbConn)
 			return
 		}
@@ -119,7 +123,7 @@ func HandleNextWord(ctx util.MsgContext, dict *jisho.JishoDict) {
 		if GetLastKana(lastWordKana) == GetFirstKana(maybeNextWordKana) {
 			util.Reply(ctx, fmt.Sprintf("%v, cлово подходит!\n%s「%s」(%s)", ctx.Msg.From.FirstName, maybeNextWordResponse.RelevantWord(), maybeNextWordKana, maybeNextWordResponse.RelevantDefinition()))
 			db.AddWord(ctx.DbConn, maybeNextWord, ctx.Msg.From.UserName)
-			util.Reply(ctx, fmt.Sprintf("Следующее слово начинается с:「%c」", GetLastKana(maybeNextWordKana))) // -> what if there is no kanji???, what if we have small kana???
+			util.Reply(ctx, fmt.Sprintf("Следующее слово начинается с: 「%c」", GetLastKana(maybeNextWordKana))) // -> what if there is no kanji???, what if we have small kana???
 		} else {
 			util.Reply(ctx, "Слово нельзя присоединить(")
 			return
@@ -129,4 +133,20 @@ func HandleNextWord(ctx util.MsgContext, dict *jisho.JishoDict) {
 		util.Reply(ctx, "Слово не на японском языке!")
 		return
 	}
+}
+
+func FormAndSendStats(ctx util.MsgContext) {
+	players := db.GetAllPlayers(ctx.DbConn)
+
+	sort.Slice(players, func(i, j int) bool {
+		return players[i].Score > players[j].Score
+	})
+
+	stats := "Результаты раунда:\n"
+
+	for i := 1; i <= len(players); i++ {
+		stats += fmt.Sprintf("%v. %v, Счёт:%v\n", i, players[i].Username, players[i].Score)
+	}
+
+	util.Reply(ctx, stats)
 }

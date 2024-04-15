@@ -11,9 +11,10 @@ type Word struct {
 }
 
 type Player struct {
-	ID       int `gorm:"primaryKey;autoIncrement"`
-	Username string
-	Score    uint64
+	ID        int    `gorm:"primaryKey;autoIncrement"`
+	FirstName string //Stats at the end
+	Username  string
+	Score     uint64
 }
 
 func Init(db *gorm.DB) {
@@ -31,8 +32,14 @@ func ShutDown(db *gorm.DB) {
 	db.Migrator().DropTable(&Player{}, &Word{})
 }
 
-func AddPlayer(db *gorm.DB, username string) {
-	db.Create(&Player{Username: username, Score: 0})
+func AddPlayer(db *gorm.DB, username string, firstName string) {
+	db.Create(&Player{Username: username, Score: 0, FirstName: firstName})
+}
+
+func GetAllPlayers(db *gorm.DB) []Player {
+	var players []Player
+	db.Model(&Player{}).Find(&players)
+	return players
 }
 
 func CheckPlayerExistence(db *gorm.DB, username string) bool {
