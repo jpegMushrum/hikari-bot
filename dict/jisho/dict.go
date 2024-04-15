@@ -12,7 +12,7 @@ import (
 
 const (
 	JishoUrl   = "https://jisho.org/api/v1/search/words?keyword=%s"
-	MaxRetries = 5
+	MaxRetries = 3
 	RetryDelay = 2 * time.Second
 )
 
@@ -31,11 +31,10 @@ func (jisho *JishoDict) Search(key string) (JishoResponse, error) {
 		// Check if the error is a timeout error
 		if netErr, ok := err.(interface{ Timeout() bool }); ok && netErr.Timeout() {
 			log.Printf("Timeout occurred, retrying (attempt %d/%d)...\n", i+1, MaxRetries)
-			time.Sleep(RetryDelay) // Wait before retrying
+			time.Sleep(RetryDelay) 
 			continue
 		}
 
-		// If it's not a timeout error, return the error immediately
 		return jr, err
 	}
 
@@ -49,7 +48,7 @@ func (jisho *JishoDict) searchAttempt(key string) (JishoResponse, error) {
 	if err != nil {
 		return jr, err
 	}
-	defer responses.Body.Close() // Close the body when the function returns
+	defer responses.Body.Close() 
 
 	responsesBytes, err := io.ReadAll(responses.Body)
 	if err != nil {
