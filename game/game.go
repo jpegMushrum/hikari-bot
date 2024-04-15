@@ -123,7 +123,7 @@ func HandleNextWord(ctx util.MsgContext, dict *jisho.JishoDict) {
 		if GetLastKana(lastWordKana) == GetFirstKana(maybeNextWordKana) {
 			util.Reply(ctx, fmt.Sprintf("%v, cлово подходит!\n%s「%s」(%s)", ctx.Msg.From.FirstName, maybeNextWordResponse.RelevantWord(), maybeNextWordKana, maybeNextWordResponse.RelevantDefinition()))
 			db.AddWord(ctx.DbConn, maybeNextWord, ctx.Msg.From.UserName)
-			util.Reply(ctx, fmt.Sprintf("Следующее слово начинается с: 「%c」", GetLastKana(maybeNextWordKana))) // -> what if there is no kanji???, what if we have small kana???
+			util.Reply(ctx, fmt.Sprintf("Следующее слово начинается с: 「%c」", GetLastKana(maybeNextWordKana)))
 		} else {
 			util.Reply(ctx, "Слово нельзя присоединить(")
 			return
