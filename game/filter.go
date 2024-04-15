@@ -43,6 +43,11 @@ var KatakanaToHiragana = map[rune]rune{
 	'パ': 'ぱ', 'ピ': 'ぴ', 'プ': 'ぷ', 'ペ': 'ぺ', 'ポ': 'ぽ',
 }
 
+var SmallKanaMappings = map[rune]rune{
+	'ォ': 'オ', 'ァ': 'ア', 'ゥ': 'ウ', 'ェ': 'エ', 'ィ': 'イ', 'ャ': 'ヤ', 'ョ': 'ヨ',
+	'ぉ': 'お', 'ぁ': 'あ', 'ぅ': 'う', 'ぇ': 'え', 'ぃ': 'い', 'ゃ': 'や', 'ょ': 'よ',
+}
+
 func ToHiragana(kana rune) rune {
 	if unicode.In(kana, unicode.Hiragana) {
 		return kana
@@ -64,51 +69,13 @@ func IsSmall(kana rune) bool {
 	return false
 }
 
-func MapSmallToBig(kana rune) rune {
-	switch kana {
-	case 'ォ':
-		return 'オ'
-	case 'ぉ':
-		return 'お'
-
-	case 'ァ':
-		return 'ア'
-
-	case 'ぁ':
-		return 'あ'
-
-	case 'ゥ':
-		return 'ウ'
-
-	case 'ぅ':
-		return 'う'
-
-	case 'ェ':
-		return 'エ'
-
-	case 'ぇ':
-		return 'え'
-
-	case 'ィ':
-		return 'イ'
-
-	case 'ぃ':
-		return 'い'
-
-	case 'ャ':
-		return 'ヤ'
-
-	case 'ゃ':
-		return 'や'
-
-	case 'ョ':
-		return 'ヨ'
-
-	case 'ょ':
-		return 'よ'
-
+func ToBigKana(small rune) rune {
+	if converted, ok := SmallKanaMappings[small]; ok {
+		return converted
+	} else {
+		log.Println("Cannot find small kana to transform")
+		return 0
 	}
-	return 0
 }
 
 func GetLastKana(s string) int32 {
@@ -128,7 +95,7 @@ outter_loop:
 	}
 
 	if IsSmall(ans) {
-		ans = MapSmallToBig(ans)
+		ans = ToBigKana(ans)
 	}
 	return ans
 }
