@@ -48,7 +48,7 @@ func ExchangeState(command string) (bool, GameState) {
 		}
 		ChangeTo(Init)
 	default:
-		log.Fatal("Unexpected game command on state changing!")
+		log.Println("Unexpected game command on state changing!")
 		// case "suspend":
 		// 	if prev != Running {
 		// 		return false, prev

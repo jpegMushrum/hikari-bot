@@ -143,9 +143,9 @@ func FormAndSendStats(ctx util.MsgContext) {
 	})
 
 	stats := "Результаты раунда:\n"
-
-	for i := 1; i <= len(players); i++ {
-		stats += fmt.Sprintf("%v. %v, Счёт:%v\n", i, players[i].Username, players[i].Score)
+	log.Println(players)
+	for i := 0; i < len(players); i++ {
+		stats += fmt.Sprintf("%v. %v, Счёт: %v\n", i+1, players[i].FirstName, players[i].Score)
 	}
 
 	util.Reply(ctx, stats)

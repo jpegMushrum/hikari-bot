@@ -10,7 +10,7 @@ type Response interface {
 	RelevantDefinition() string
 }
 
-///???
+/// Do we really need this???
 type Dictionary[R Response] interface {
 	Search(key string) (R, error)
 }
