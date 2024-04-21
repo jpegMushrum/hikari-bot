@@ -53,7 +53,6 @@ func RunGameCommand(ctx util.MsgContext) {
 			util.Reply(ctx, GreetingsString)
 			RandomizeStart(ctx)
 		case Running:
-			util.Reply(ctx, EndingString)
 			FormAndSendStats(ctx)
 			db.ShutDown(ctx.DbConn)
 		}
