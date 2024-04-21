@@ -52,6 +52,7 @@ func RunGameCommand(ctx util.GameContext) {
 			util.Reply(ctx.TeleCtx, GreetingsString)
 			RandomizeStart(ctx)
 		case Running:
+			SetThreadId(-1)
 			FormAndSendStats(ctx)
 			db.ShutDown(ctx.DbConn)
 		}
@@ -136,14 +137,15 @@ func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
 func FormAndSendStats(ctx util.GameContext) {
 	players := db.GetAllPlayers(ctx.DbConn)
 
+	// Sort players by score in descending order
 	sort.Slice(players, func(i, j int) bool {
 		return players[i].Score > players[j].Score
 	})
 
 	stats := "Результаты раунда:\n"
-	log.Println(players)
-	for i := 0; i < len(players); i++ {
-		stats += fmt.Sprintf("%v. %v, Счёт: %v\n", i+1, players[i].FirstName, players[i].Score)
+
+	for i, p := range players {
+		stats += fmt.Sprintf("%v) %s, Счёт: %v\n", i+1, p.FirstName, p.Score)
 	}
 
 	util.Reply(ctx.TeleCtx, stats)

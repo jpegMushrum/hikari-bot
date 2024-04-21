@@ -100,7 +100,6 @@ func main() {
 	bot.Handle("/stop_game", func(c tele.Context) error {
 		game.RunGameCommand(util.GameContext{DbConn: dbConn, TeleCtx: c})
 		return nil
-
 	})
 
 	bot.Handle(tele.OnText, func(c tele.Context) error {
