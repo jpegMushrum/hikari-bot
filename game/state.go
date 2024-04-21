@@ -1,24 +1,26 @@
 package game
 
-import "log"
+import (
+	"log"
+	"strings"
+)
 
 type GameState uint8
 
 const (
 	Init    GameState = 0
 	Running GameState = 1
-	// Suspend GameState = 2
 )
 
 var CurrentGameState = Init
-var GameChatId int64 = 0
+var ThreadID int = 0
 
-func Chat() int64 {
-	return int64(GameChatId)
+func Thread() int {
+	return ThreadID
 }
 
-func SetChat(chat int64) {
-	GameChatId = chat
+func SetThreadId(threadId int) {
+	ThreadID = threadId
 }
 
 func ChangeTo(to GameState) {
@@ -34,31 +36,24 @@ func IsRunning() bool {
 }
 
 func ExchangeState(command string) (bool, GameState) {
-
+	if atIndex := strings.Index(command, "@"); atIndex != -1 {
+		command = command[:atIndex]
+	}
+	log.Println(command)
 	prev := GetCurrentGameState()
 	switch command {
-	case "sh_start":
+	case "/start_game":
 		if prev != Init {
 			return false, prev
 		}
 		ChangeTo(Running)
-	case "sh_stop":
+	case "/stop_game":
 		if prev == Init {
 			return false, prev
 		}
 		ChangeTo(Init)
 	default:
 		log.Println("Unexpected game command on state changing!")
-		// case "suspend":
-		// 	if prev != Running {
-		// 		return false, prev
-		// 	}
-		// 	ChangeTo(Suspend)
-		// case "resume":
-		// 	if prev != Suspend {
-		// 		return false, prev
-		// 	}
-		// 	ChangeTo(Running)
 	}
 
 	return true, prev

@@ -7,11 +7,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"time"
 
-	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	_ "github.com/lib/pq"
+	tele "gopkg.in/telebot.v3"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -21,12 +20,11 @@ const (
 	Справка по коммандам:
 	/help - Справка по командам
 	/rules - Правила игры
-	/sh_start - Начать игру
-	/sh_stop - Закончить игру и вывести результаты`
+	/start_game - Начать игру
+	/stop_game - Закончить игру и вывести результаты`
 
-	Unknown         = "Неизвестная команда"
-	ShiritoryPrefix = "sh_"
-	Rules           = `
+	Unknown = "Неизвестная команда"
+	Rules   = `
 	Правила:
 	1. Два или более человек по очереди играют.
 
@@ -47,26 +45,6 @@ const (
 	Дополнительно: для удобства можно вводить слова как в форме кандзи так и в чистой кане`
 )
 
-func HandleCommand(dbConn *gorm.DB, bot *tg.BotAPI, msg *tg.Message) {
-	command := msg.Command()
-
-	if strings.HasPrefix(command, ShiritoryPrefix) {
-		game.RunGameCommand(util.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg})
-		return
-	}
-
-	//Filter non-game commands e.g /help
-	switch command {
-	case "help":
-		util.Reply(util.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg}, HelpInfo)
-	case "rules":
-		util.Reply(util.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg}, Rules)
-
-	default:
-		util.Reply(util.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg}, Unknown)
-	}
-}
-
 func connectToPostgres(dsn string) (*gorm.DB, error) {
 	const maxRetries = 3
 	const delayBetweenRetries = time.Second
@@ -86,7 +64,11 @@ func connectToPostgres(dsn string) (*gorm.DB, error) {
 
 func main() {
 
-	bot, err := tg.NewBotAPI(os.Getenv("HIKARI_BOT_TOKEN"))
+	bot, err := tele.NewBot(tele.Settings{
+		Token:  os.Getenv("HIKARI_BOT_TOKEN"),
+		Poller: &tele.LongPoller{Timeout: 10 * time.Second},
+	})
+
 	if err != nil {
 		log.Fatalf("Couldn't initialize bot api!\n%v", err)
 	}
@@ -98,29 +80,35 @@ func main() {
 		log.Fatalf("Couldn't establish connection to PostgreSQL!\n%v", err)
 	}
 
-	// bot.Debug = true
-
-	uCfg := tg.NewUpdate(0) // No timeout (or maybe specify later)
-	uCfg.Timeout = 60
-	uCfg.AllowedUpdates = []string{"message"}
-
-	// Strand | MPSC
-	upds := bot.GetUpdatesChan(uCfg)
-
 	dict := &jisho.JishoDict{}
 
-	for upd := range upds {
-		if msg := upd.Message; msg != nil {
-			log.Printf("User: %v, Message: %v", msg.From.UserName, msg.Text)
-			if msg.IsCommand() {
-				HandleCommand(dbConn, bot, msg)
-			} else {
-				log.Println(game.Chat())
-				log.Println(msg.Chat.ID)
-				if game.Chat() == msg.Chat.ID && game.IsRunning() {
-					game.HandleNextWord(util.MsgContext{DbConn: dbConn, Bot: bot, Msg: msg}, dict)
-				}
-			}
+	bot.Handle("/help", func(c tele.Context) error {
+		util.Reply(c, HelpInfo)
+		return nil
+	})
+
+	bot.Handle("/rules", func(c tele.Context) error {
+		util.Reply(c, Rules)
+		return nil
+	})
+
+	bot.Handle("/start_game", func(c tele.Context) error {
+		game.RunGameCommand(util.GameContext{DbConn: dbConn, TeleCtx: c})
+		return nil
+	})
+
+	bot.Handle("/stop_game", func(c tele.Context) error {
+		game.RunGameCommand(util.GameContext{DbConn: dbConn, TeleCtx: c})
+		return nil
+
+	})
+
+	bot.Handle(tele.OnText, func(c tele.Context) error {
+		if game.Thread() == c.Message().ThreadID {
+			game.HandleNextWord(util.GameContext{DbConn: dbConn, TeleCtx: c}, dict)
 		}
-	}
+		return nil
+	})
+
+	bot.Start()
 }
