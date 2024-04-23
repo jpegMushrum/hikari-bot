@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -43,6 +44,8 @@ const (
 	-> сумо 	(すもう)
 	-> удон 	(うどん)
 	Дополнительно: для удобства можно вводить слова как в форме кандзи так и в чистой кане`
+
+	UnknownCommand = "Неизвестная комманда"
 )
 
 func connectToPostgres(dsn string) (*gorm.DB, error) {
@@ -96,13 +99,16 @@ func main() {
 		game.RunGameCommand(util.GameContext{DbConn: dbConn, TeleCtx: c})
 		return nil
 	})
-
 	bot.Handle("/stop_game", func(c tele.Context) error {
 		game.RunGameCommand(util.GameContext{DbConn: dbConn, TeleCtx: c})
 		return nil
 	})
 
 	bot.Handle(tele.OnText, func(c tele.Context) error {
+		if strings.HasPrefix(c.Text(), "/") { // Filter unused commands
+			util.Reply(c, UnknownCommand)
+			return nil
+		}
 		if game.Thread() == c.Message().ThreadID {
 			game.HandleNextWord(util.GameContext{DbConn: dbConn, TeleCtx: c}, dict)
 		}

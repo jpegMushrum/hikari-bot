@@ -50,7 +50,8 @@ func CheckPlayerExistence(db *gorm.DB, username string) bool {
 
 func AddWord(db *gorm.DB, word string, from string) {
 	db.Create(&Word{Username: from, Word: word})
-	db.Model(&Player{}).Where("username = ?", from).Update("score", gorm.Expr("score + ?", 1))
+	db.Model(&Player{}).Where("username = ?", from).
+		Update("score", gorm.Expr("score + ?", 1))
 }
 
 func GetLastWord(db *gorm.DB) string {
