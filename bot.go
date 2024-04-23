@@ -76,8 +76,14 @@ func main() {
 		log.Fatalf("Couldn't initialize bot api!\n%v", err)
 	}
 
-	dsn := fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=5432 sslmode=disable",
-		os.Getenv("PG_HOST"), os.Getenv("PG_LOGIN"), os.Getenv("PG_PASS"), os.Getenv("PG_DB"))
+	dsn := fmt.Sprintf(
+		"host=%v user=%v password=%v dbname=%v port=5432 sslmode=disable",
+		os.Getenv("PG_HOST"),
+		os.Getenv("PG_LOGIN"),
+		os.Getenv("PG_PASS"),
+		os.Getenv("PG_DB"),
+	)
+	
 	dbConn, err := connectToPostgres(dsn)
 	if err != nil {
 		log.Fatalf("Couldn't establish connection to PostgreSQL!\n%v", err)

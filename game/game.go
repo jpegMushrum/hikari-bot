@@ -15,6 +15,7 @@ const (
 	EndingString        = "Результаты раунда:"
 	IsNotStartedError   = "Игра ещё не началась!"
 	AlreadyRunningError = "Игра уже запущена！"
+	PoisonedId          = -1
 )
 
 const (
@@ -52,7 +53,7 @@ func RunGameCommand(ctx util.GameContext) {
 			util.Reply(ctx.TeleCtx, GreetingsString)
 			RandomizeStart(ctx)
 		case Running:
-			SetThreadId(-1)
+			SetThreadId(PoisonedId)
 			FormAndSendStats(ctx)
 			db.ShutDown(ctx.DbConn)
 		}
