@@ -99,37 +99,68 @@ func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
 		AddPlayer(ctx)
 	}
 
-	maybeNextWord := ctx.TeleCtx.Text()
+	nextWord := ctx.TeleCtx.Text()
 
-	if IsJapSuitable(maybeNextWord) {
+	if IsJapSuitable(nextWord) {
 		lastWord, lastKana := LastWord(ctx)
 
 		log.Printf("Last Word: %s, %s", lastWord, lastKana)
-
-		maybeNextWordResponse, err := dict.Search(maybeNextWord)
+		nextWordResponse, err := dict.Search(nextWord)
 
 		if err != nil {
 			log.Println(err)
+			util.Reply(ctx.TeleCtx, "словари недоступны =(")
+			return
 		}
 
-		if !maybeNextWordResponse.HasEntries() {
+		nextSpeechPart, err := nextWordResponse.RelevantSpeechPart()
+
+		if err != nil {
+			log.Println(err)
+			util.Reply(ctx.TeleCtx, err.Error())
+			return
+		}
+
+		nextKanaSearched, err := nextWordResponse.RelevantKana()
+
+		if err != nil {
+			log.Println(err)
+			util.Reply(ctx.TeleCtx, err.Error())
+			return
+		}
+
+		nextWordSearched, err := nextWordResponse.RelevantWord()
+
+		if err != nil {
+			log.Println(err)
+			util.Reply(ctx.TeleCtx, err.Error())
+			return
+		}
+
+		nextWordDefinition, err := nextWordResponse.RelevantDefinition()
+
+		if err != nil {
+			log.Println(err)
+			util.Reply(ctx.TeleCtx, err.Error())
+			return
+		}
+
+		if !HasEntries(&nextWordResponse) {
 			util.Reply(ctx.TeleCtx, "К сожалению, я не знаю такого слова(")
 			return
 		}
 
-		if maybeNextWordResponse.RelevantSpeechPart() != Noun {
+		if !IsNoun(nextSpeechPart) {
 			util.Reply(ctx.TeleCtx, "Слово не является существительным!")
 			return
 		}
-		maybeNextWordKana := maybeNextWordResponse.RelevantKana()
 
-		// Shadow help fix (jisho tries to autocomplete our words)
-		if maybeNextWordResponse.RelevantWord() != maybeNextWord && maybeNextWordKana != maybeNextWord {
+		if IsShadowed(nextWordSearched, nextKanaSearched, nextWord) {
 			util.Reply(ctx.TeleCtx, "К сожалению, я не знаю такого слова(")
 			return
 		}
 
-		if IsEnd(maybeNextWordKana) {
+		if IsEnd(nextKanaSearched) {
 			util.Reply(ctx.TeleCtx, "Раунд завершён, введено завершающее слово!")
 			ForceStop()
 			FormAndSendStats(ctx)
@@ -137,26 +168,26 @@ func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
 			return
 		}
 
-		if IsDoubled(ctx, maybeNextWord) {
+		if IsDoubled(ctx, nextWord) {
 			util.Reply(ctx.TeleCtx, "Такое слово уже было")
 			return
 		}
 
-		if GetLastKana(lastKana) == GetFirstKana(maybeNextWordKana) {
+		if GetLastKana(lastKana) == GetFirstKana(nextKanaSearched) {
 			util.Reply(ctx.TeleCtx,
 				fmt.Sprintf("%v, cлово подходит!\n%s「%s」(%s)",
 					ctx.TeleCtx.Message().Sender.FirstName,
-					maybeNextWordResponse.RelevantWord(),
-					maybeNextWordKana,
-					maybeNextWordResponse.RelevantDefinition(),
+					nextWordSearched,
+					nextKanaSearched,
+					nextWordDefinition,
 				),
 			)
 
-			AddWord(ctx, maybeNextWord, maybeNextWordKana)
-			
+			AddWord(ctx, nextWordSearched, nextKanaSearched)
+
 			util.Reply(ctx.TeleCtx,
 				fmt.Sprintf("Следующее слово начинается с: 「%c」",
-					GetLastKana(maybeNextWordKana),
+					GetLastKana(nextKanaSearched),
 				),
 			)
 

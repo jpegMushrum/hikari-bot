@@ -1,6 +1,9 @@
 package jisho
 
-import "strings"
+import (
+	"errors"
+	"strings"
+)
 
 type Meta struct {
 	Status int `json:"status"`
@@ -32,31 +35,64 @@ func (jsr *JishoResponse) HasEntries() bool {
 	return len(jsr.Data) > 0
 }
 
-// Unsafe
-func (jsr *JishoResponse) RelevantDefinition() string {
-	return jsr.Data[0].Senses[0].EnglishDef[0]
-}
-
-// Unsafe
-func (jsr *JishoResponse) RelevantKana() string {
-	return jsr.Data[0].Japanese[0].Reading
-}
-
-// Unsafe
-func (jsr *JishoResponse) RelevantWord() string {
-	word := jsr.Data[0].Japanese[0].Word
-	if word == "" { // Kana only case
-		return jsr.Data[0].Japanese[0].Reading
+func (jsr *JishoResponse) RelevantDefinition() (string, error) {
+	if len(jsr.Data) < 1 {
+		return "", errors.New("cлово не имеет перевода =(")
 	}
-	return word
+	if len(jsr.Data[0].Senses) < 1 {
+		return "", errors.New("cлово не имеет перевода =(")
+	}
+	if len(jsr.Data[0].Senses[0].EnglishDef) < 1 {
+		return "", errors.New("cлово не имеет перевода =(")
+	}
+	return jsr.Data[0].Senses[0].EnglishDef[0], nil
 }
 
 // Unsafe
-func (jsr *JishoResponse) RelevantSpeechPart() string {
-	return strings.ToLower(jsr.Data[0].Senses[0].SpeechParts[0])
+func (jsr *JishoResponse) RelevantKana() (string, error) {
+	if len(jsr.Data) < 1 {
+		return "", errors.New("нет слова =(")
+	}
+	if len(jsr.Data[0].Japanese) < 1 {
+		return "", errors.New("нет слова =(")
+	}
+	return jsr.Data[0].Japanese[0].Reading, nil
 }
 
-// Unsafe
+func (jsr *JishoResponse) RelevantWord() (string, error) {
+	if len(jsr.Data) < 1 {
+		return "", errors.New("нет слова =(")
+	}
+	if len(jsr.Data[0].Japanese) < 1 {
+		return "", errors.New("нет слова =(")
+	}
+	word := jsr.Data[0].Japanese[0].Word
+
+	if word == "" { // Kana only case
+		kana, err := jsr.RelevantKana()
+		if err != nil {
+			return "", err
+		}
+		return kana, nil
+	}
+
+	return word, nil
+}
+
+func (jsr *JishoResponse) RelevantSpeechPart() (string, error) {
+
+	if len(jsr.Data) < 1 {
+		return "", errors.New("нельзя определить часть речи =(")
+	}
+	if len(jsr.Data[0].Senses) < 1 {
+		return "", errors.New("нельзя определить часть речи =(")
+	}
+	if len(jsr.Data[0].Senses[0].SpeechParts) < 1 {
+		return "", errors.New("нельзя определить часть речи =(")
+	}
+	return strings.ToLower(jsr.Data[0].Senses[0].SpeechParts[0]), nil
+}
+
 func (jsr *JishoResponse) Words() []string {
 	words := []string{}
 	for _, dt := range jsr.Data {

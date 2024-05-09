@@ -2,15 +2,14 @@ package dict
 
 type Response interface {
 	HasEntries() bool
-	RelevantKana() string
-	RelevantWord() string
+	RelevantKana() (string, error)
+	RelevantWord() (string, error)
 	Kanas() []string
 	Words() []string
-	RelevantSpeechPart() string
-	RelevantDefinition() string
+	RelevantSpeechPart() (string, error)
+	RelevantDefinition() (string, error)
 }
 
-/// Do we really need this???
-type Dictionary[R Response] interface {
-	Search(key string) (R, error)
+type Dictionary interface {
+	Search(key string) (Response, error)
 }

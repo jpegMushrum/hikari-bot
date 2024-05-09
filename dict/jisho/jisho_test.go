@@ -22,11 +22,13 @@ func TestKana(t *testing.T) {
 	dict := JishoDict{}
 	jr, _ := dict.Search(KatakanaOnly)
 	assert.True(t, jr.HasEntries())
-	assert.True(t, jr.RelevantKana() == KatakanaOnly)
+	kana, _ := jr.RelevantKana()
+	assert.True(t, kana == KatakanaOnly)
 
 	jr, _ = dict.Search(HiraganaOnly)
 	assert.True(t, jr.HasEntries())
-	assert.True(t, jr.RelevantKana() == HiraganaOnly)
+	kana, _ = jr.RelevantKana()
+	assert.True(t, kana == HiraganaOnly)
 }
 
 func TestBlank(t *testing.T) {
@@ -41,9 +43,11 @@ func TestKanji(t *testing.T) {
 
 	jr, _ := dict.Search(Kanji1)
 	assert.True(t, jr.HasEntries())
-	assert.True(t, jr.RelevantKana() == KanjiReading1)
+	kana, _ := jr.RelevantKana()
+	assert.True(t, kana == KanjiReading1)
 
 	jr, _ = dict.Search(Kanji2)
 	assert.True(t, jr.HasEntries())
-	assert.True(t, jr.RelevantKana() == KanjiReading2)
+	kana, _ = jr.RelevantKana()
+	assert.True(t, kana == KanjiReading2)
 }

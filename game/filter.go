@@ -125,6 +125,19 @@ func IsDoubled(ctx util.GameContext, word string) bool {
 	return dao.CheckWordExistence(ctx.DbConn, word)
 }
 
+func IsNoun(word string) bool {
+	return word == Noun
+}
+
+func HasEntries(r dict.Response) bool {
+	return r.HasEntries()
+}
+
+// Shadow help fix (jisho tries to autocomplete our words)
+func IsShadowed(word1 string, kana1 string, word2 string) bool {
+	return word1 != word2 && kana1 != word2
+}
+
 func IsJapanese(word string) bool {
 	for _, char := range word {
 		if !unicode.In(char, unicode.Hiragana, unicode.Katakana, unicode.Han) && char != 'ー' {
@@ -140,8 +153,4 @@ func IsNotBlank(word string) bool {
 
 func IsJapSuitable(word string) bool {
 	return IsNotBlank(word) && IsJapanese(word)
-}
-
-func IsNoun(jsr dict.Response) bool {
-	return jsr.RelevantSpeechPart() == Noun
 }
