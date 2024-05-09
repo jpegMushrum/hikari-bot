@@ -1,6 +1,8 @@
 package game
 
 import (
+	"bakalover/hikari-bot/util"
+	"errors"
 	"log"
 	"strings"
 )
@@ -35,26 +37,26 @@ func IsRunning() bool {
 	return GetCurrentGameState() == Running
 }
 
-func ExchangeState(command string) (bool, GameState) {
-	if atIndex := strings.Index(command, "@"); atIndex != -1 {
+func ExchangeState(command util.Command) (GameState, error) {
+	if atIndex := strings.Index(string(command), "@"); atIndex != -1 {
 		command = command[:atIndex]
 	}
 	log.Println(command)
 	prev := GetCurrentGameState()
 	switch command {
-	case "/start_game":
+	case util.StartCommand:
 		if prev != Init {
-			return false, prev
+			return prev, errors.New("")
 		}
 		ChangeTo(Running)
-	case "/stop_game":
+	case util.StopCommand:
 		if prev == Init {
-			return false, prev
+			return prev, errors.New("")
 		}
 		ChangeTo(Init)
 	default:
 		log.Println("Unexpected game command on state changing!")
 	}
 
-	return true, prev
+	return prev, nil
 }

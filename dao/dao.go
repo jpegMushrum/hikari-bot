@@ -1,4 +1,4 @@
-package db
+package dao
 
 import (
 	"gorm.io/gorm"
@@ -7,12 +7,13 @@ import (
 type Word struct {
 	ID       int `gorm:"primaryKey;autoIncrement"`
 	Word     string
+	Kana     string
 	Username string
 }
 
 type Player struct {
 	ID        int    `gorm:"primaryKey;autoIncrement"`
-	FirstName string //Stats at the end
+	FirstName string //Pretty stats at the end
 	Username  string
 	Score     uint64
 }
@@ -36,7 +37,7 @@ func AddPlayer(db *gorm.DB, username string, firstName string) {
 	db.Create(&Player{Username: username, Score: 0, FirstName: firstName})
 }
 
-func GetAllPlayers(db *gorm.DB) []Player {
+func AllPlayers(db *gorm.DB) []Player {
 	var players []Player
 	db.Model(&Player{}).Find(&players)
 	return players
@@ -48,16 +49,16 @@ func CheckPlayerExistence(db *gorm.DB, username string) bool {
 	return len(players) != 0
 }
 
-func AddWord(db *gorm.DB, word string, from string) {
-	db.Create(&Word{Username: from, Word: word})
+func AddWord(db *gorm.DB, word string, kana string, from string) {
+	db.Create(&Word{Username: from, Word: word, Kana: kana})
 	db.Model(&Player{}).Where("username = ?", from).
 		Update("score", gorm.Expr("score + ?", 1))
 }
 
-func GetLastWord(db *gorm.DB) string {
+func LastWord(db *gorm.DB) (string, string) {
 	var lastWord Word
 	db.Last(&lastWord)
-	return lastWord.Word
+	return lastWord.Word, lastWord.Kana
 }
 
 func CheckWordExistence(db *gorm.DB, word string) bool {

@@ -5,20 +5,20 @@ services:
     ports:
       - 8080:8080
     environment:
-      PG_HOST: db
-      PG_LOGIN: ${POSTGRES_USER}
-      PG_PASSWORD: ${POSTGRES_PASSWORD}
-      PG_DB: ${POSTGRES_DB}
+      PG_HOST: ${PG_HOST}
+      PG_LOGIN: ${PG_LOGIN}
+      PG_PASS: ${PG_PASS}
+      PG_DB: ${PG_DB}
       HIKARI_BOT_TOKEN: ${HIKARI_BOT_TOKEN} 
     depends_on:
       - db
   db:
     image: postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${PG_LOGIN}
+      POSTGRES_PASSWORD: ${PG_PASS}
+      POSTGRES_DB: ${PG_DB}
     ports:
-      - 5432:5432
+      - 5433:5432
     volumes:
       - ./data:/var/lib/postgresql/data

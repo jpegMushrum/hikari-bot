@@ -1,7 +1,7 @@
 package game
 
 import (
-	"bakalover/hikari-bot/db"
+	"bakalover/hikari-bot/dao"
 	"bakalover/hikari-bot/dict/jisho"
 	"bakalover/hikari-bot/util"
 	"fmt"
@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	GreetingsString     = "Раунд начинается!"
-	EndingString        = "Результаты раунда:"
+	Greetings           = "Раунд начинается!"
+	Ending              = "Результаты раунда:"
 	IsNotStartedError   = "Игра ещё не началась!"
 	AlreadyRunningError = "Игра уже запущена！"
 	PoisonedId          = -1
@@ -30,32 +30,55 @@ const (
 func RandomizeStart(ctx util.GameContext) {
 	words := []string{word1, word2, word3, word4, word5, word6}
 	initWord := words[rand.Intn(len(words))]
-	db.AddWord(ctx.DbConn, initWord, "DUMMY_USER")
+	dao.AddWord(ctx.DbConn, initWord, initWord, "DUMMY_USER")
 	util.Reply(ctx.TeleCtx, fmt.Sprintf("Первое слово: %s", initWord))
 }
 
 func AddPlayer(ctx util.GameContext) {
-	db.AddPlayer(ctx.DbConn, util.Username(ctx.TeleCtx), util.FirstName(ctx.TeleCtx))
+	dao.AddPlayer(ctx.DbConn, util.Username(ctx.TeleCtx), util.FirstName(ctx.TeleCtx))
 	util.Reply(ctx.TeleCtx, fmt.Sprintf("%s, добро пожаловать в игру!", util.FirstName(ctx.TeleCtx)))
 }
 
 func PlayerExists(ctx util.GameContext) bool {
-	return db.CheckPlayerExistence(ctx.DbConn, util.Username(ctx.TeleCtx))
+	return dao.CheckPlayerExistence(ctx.DbConn, util.Username(ctx.TeleCtx))
 }
 
-func RunGameCommand(ctx util.GameContext) {
-	if ok, state := ExchangeState(ctx.TeleCtx.Text()); ok {
+func InitData(ctx util.GameContext) {
+	dao.Init(ctx.DbConn)
+}
+
+func ClearData(ctx util.GameContext) {
+	dao.ShutDown(ctx.DbConn)
+}
+
+func LastWord(ctx util.GameContext) (string, string) {
+	return dao.LastWord(ctx.DbConn)
+}
+
+// This is bad, really bad
+func AllPlayers(ctx util.GameContext) []dao.Player {
+	return dao.AllPlayers(ctx.DbConn)
+}
+
+func AddWord(ctx util.GameContext, word string, kana string) {
+	dao.AddWord(ctx.DbConn, word, kana, ctx.TeleCtx.Message().Sender.Username)
+}
+
+func HandleCommand(ctx util.GameContext) {
+	state, err := ExchangeState(util.Command(ctx.TeleCtx.Text()))
+
+	if err == nil {
 		switch state {
 		case Init:
 			SetThreadId(ctx.TeleCtx.Message().ThreadID)
-			db.Init(ctx.DbConn)
+			InitData(ctx)
 			AddPlayer(ctx) // Player who pressed /start_game
-			util.Reply(ctx.TeleCtx, GreetingsString)
+			util.Reply(ctx.TeleCtx, Greetings)
 			RandomizeStart(ctx)
 		case Running:
 			SetThreadId(PoisonedId)
 			FormAndSendStats(ctx)
-			db.ShutDown(ctx.DbConn)
+			ClearData(ctx)
 		}
 	} else {
 		switch state {
@@ -67,6 +90,10 @@ func RunGameCommand(ctx util.GameContext) {
 	}
 }
 
+func ForceStop() {
+	ExchangeState(util.StopCommand)
+}
+
 func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
 	if !PlayerExists(ctx) {
 		AddPlayer(ctx)
@@ -75,21 +102,16 @@ func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
 	maybeNextWord := ctx.TeleCtx.Text()
 
 	if IsJapSuitable(maybeNextWord) {
-		lastWord := db.GetLastWord(ctx.DbConn)
+		lastWord, lastKana := LastWord(ctx)
 
-		log.Println("Last Word: ", lastWord)
-
-		lastWordResponse, err := dict.Search(lastWord) // -> optimize (store kana in db on next retrieve)
-		if err != nil {
-			log.Println(err)
-		}
-		log.Println("Last word dict response: ", lastWordResponse)
-		lastWordKana := lastWordResponse.RelevantKana()
+		log.Printf("Last Word: %s, %s", lastWord, lastKana)
 
 		maybeNextWordResponse, err := dict.Search(maybeNextWord)
+
 		if err != nil {
 			log.Println(err)
 		}
+
 		if !maybeNextWordResponse.HasEntries() {
 			util.Reply(ctx.TeleCtx, "К сожалению, я не знаю такого слова(")
 			return
@@ -101,7 +123,7 @@ func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
 		}
 		maybeNextWordKana := maybeNextWordResponse.RelevantKana()
 
-		// Shadow help fix (jisho tries to autocomplete outr words)
+		// Shadow help fix (jisho tries to autocomplete our words)
 		if maybeNextWordResponse.RelevantWord() != maybeNextWord && maybeNextWordKana != maybeNextWord {
 			util.Reply(ctx.TeleCtx, "К сожалению, я не знаю такого слова(")
 			return
@@ -109,21 +131,35 @@ func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
 
 		if IsEnd(maybeNextWordKana) {
 			util.Reply(ctx.TeleCtx, "Раунд завершён, введено завершающее слово!")
-			ExchangeState("/stop_game") // ??? -> Better state control
+			ForceStop()
 			FormAndSendStats(ctx)
-			db.ShutDown(ctx.DbConn)
+			ClearData(ctx)
 			return
 		}
 
-		if db.CheckWordExistence(ctx.DbConn, maybeNextWord) {
+		if IsDoubled(ctx, maybeNextWord) {
 			util.Reply(ctx.TeleCtx, "Такое слово уже было")
 			return
 		}
 
-		if GetLastKana(lastWordKana) == GetFirstKana(maybeNextWordKana) {
-			util.Reply(ctx.TeleCtx, fmt.Sprintf("%v, cлово подходит!\n%s「%s」(%s)", ctx.TeleCtx.Message().Sender.FirstName, maybeNextWordResponse.RelevantWord(), maybeNextWordKana, maybeNextWordResponse.RelevantDefinition()))
-			db.AddWord(ctx.DbConn, maybeNextWord, ctx.TeleCtx.Message().Sender.Username)
-			util.Reply(ctx.TeleCtx, fmt.Sprintf("Следующее слово начинается с: 「%c」", GetLastKana(maybeNextWordKana)))
+		if GetLastKana(lastKana) == GetFirstKana(maybeNextWordKana) {
+			util.Reply(ctx.TeleCtx,
+				fmt.Sprintf("%v, cлово подходит!\n%s「%s」(%s)",
+					ctx.TeleCtx.Message().Sender.FirstName,
+					maybeNextWordResponse.RelevantWord(),
+					maybeNextWordKana,
+					maybeNextWordResponse.RelevantDefinition(),
+				),
+			)
+
+			AddWord(ctx, maybeNextWord, maybeNextWordKana)
+			
+			util.Reply(ctx.TeleCtx,
+				fmt.Sprintf("Следующее слово начинается с: 「%c」",
+					GetLastKana(maybeNextWordKana),
+				),
+			)
+
 		} else {
 			util.Reply(ctx.TeleCtx, "Слово нельзя присоединить(")
 			return
@@ -136,7 +172,7 @@ func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
 }
 
 func FormAndSendStats(ctx util.GameContext) {
-	players := db.GetAllPlayers(ctx.DbConn)
+	players := AllPlayers(ctx)
 
 	// Sort players by score in descending order
 	sort.Slice(players, func(i, j int) bool {

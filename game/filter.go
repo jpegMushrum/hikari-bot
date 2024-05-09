@@ -1,7 +1,9 @@
 package game
 
 import (
+	"bakalover/hikari-bot/dao"
 	"bakalover/hikari-bot/dict"
+	"bakalover/hikari-bot/util"
 	"log"
 	"strings"
 	"unicode"
@@ -117,6 +119,10 @@ func IsEnd(word string) bool {
 		return true
 	}
 	return false
+}
+
+func IsDoubled(ctx util.GameContext, word string) bool {
+	return dao.CheckWordExistence(ctx.DbConn, word)
 }
 
 func IsJapanese(word string) bool {

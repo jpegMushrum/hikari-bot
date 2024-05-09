@@ -48,7 +48,7 @@ const (
 	UnknownCommand = "Неизвестная комманда"
 )
 
-func connectToPostgres(dsn string) (*gorm.DB, error) {
+func connectToDatabase(dsn string) (*gorm.DB, error) {
 	const maxRetries = 3
 	const delayBetweenRetries = time.Second
 
@@ -77,14 +77,14 @@ func main() {
 	}
 
 	dsn := fmt.Sprintf(
-		"host=%v user=%v password=%v dbname=%v port=5432 sslmode=disable",
+		"host=%v user=%v password=%v dbname=%v port=5433 sslmode=disable",
 		os.Getenv("PG_HOST"),
 		os.Getenv("PG_LOGIN"),
 		os.Getenv("PG_PASS"),
 		os.Getenv("PG_DB"),
 	)
 	
-	dbConn, err := connectToPostgres(dsn)
+	dbConn, err := connectToDatabase(dsn)
 	if err != nil {
 		log.Fatalf("Couldn't establish connection to PostgreSQL!\n%v", err)
 	}
@@ -102,11 +102,12 @@ func main() {
 	})
 
 	bot.Handle("/start_game", func(c tele.Context) error {
-		game.RunGameCommand(util.GameContext{DbConn: dbConn, TeleCtx: c})
+		game.HandleCommand(util.GameContext{DbConn: dbConn, TeleCtx: c})
 		return nil
 	})
+
 	bot.Handle("/stop_game", func(c tele.Context) error {
-		game.RunGameCommand(util.GameContext{DbConn: dbConn, TeleCtx: c})
+		game.HandleCommand(util.GameContext{DbConn: dbConn, TeleCtx: c})
 		return nil
 	})
 
