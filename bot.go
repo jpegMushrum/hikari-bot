@@ -77,7 +77,7 @@ func main() {
 	}
 
 	dsn := fmt.Sprintf(
-		"host=%v user=%v password=%v dbname=%v port=5433 sslmode=disable",
+		"host=%v user=%v password=%v dbname=%v port=5432 sslmode=disable",
 		os.Getenv("PG_HOST"),
 		os.Getenv("PG_LOGIN"),
 		os.Getenv("PG_PASS"),
