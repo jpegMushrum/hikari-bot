@@ -70,7 +70,7 @@ func main() {
 	bot, err := tele.NewBot(tele.Settings{
 		Token:       os.Getenv("HIKARI_BOT_TOKEN"),
 		Poller:      &tele.LongPoller{Timeout: 10 * time.Second},
-		Synchronous: false,
+		Synchronous: true,
 	})
 
 	if err != nil {
