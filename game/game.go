@@ -73,7 +73,7 @@ func AddWord(ctx util.GameContext, word string, kana string) {
 }
 
 func NullifyScore(ctx util.GameContext) {
-	dao.SetScore(ctx.DbConn, util.Username(ctx.TeleCtx), -1)
+	dao.SetScore(ctx.DbConn, util.Username(ctx.TeleCtx), 0)
 }
 
 func HandleCommand(ctx util.GameContext) {
@@ -104,6 +104,7 @@ func HandleCommand(ctx util.GameContext) {
 
 func ForceStop() {
 	ExchangeState(util.StopCommand)
+	SetThreadId(PoisonedId)
 }
 
 func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {

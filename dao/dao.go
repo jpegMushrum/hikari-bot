@@ -55,7 +55,7 @@ func AddWord(db *gorm.DB, word string, kana string, from string) {
 		Update("score", gorm.Expr("score + ?", 1))
 }
 
-func SetScore(db *gorm.DB, player string, to int) {
+func SetScore(db *gorm.DB, player string, to uint64) {
 	db.Model(&Player{}).Where("username = ?", player).
 		Update("score", to)
 }

@@ -15,7 +15,7 @@ const (
 )
 
 var CurrentGameState = Init
-var ThreadID int = 0
+var ThreadID int = -1
 
 func Thread() int {
 	return ThreadID
