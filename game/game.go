@@ -61,7 +61,11 @@ func AllPlayers(ctx util.GameContext) []dao.Player {
 }
 
 func AddWord(ctx util.GameContext, word string, kana string) {
-	dao.AddWord(ctx.DbConn, word, kana, ctx.TeleCtx.Message().Sender.Username)
+	dao.AddWord(ctx.DbConn, word, kana, util.Username(ctx.TeleCtx))
+}
+
+func NullifyScore(ctx util.GameContext) {
+	dao.SetScore(ctx.DbConn, util.Username(ctx.TeleCtx), -1)
 }
 
 func HandleCommand(ctx util.GameContext) {
@@ -162,6 +166,7 @@ func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
 
 		if IsEnd(nextKanaSearched) {
 			util.Reply(ctx.TeleCtx, "Раунд завершён, введено завершающее слово!")
+			NullifyScore(ctx)
 			ForceStop()
 			FormAndSendStats(ctx)
 			ClearData(ctx)

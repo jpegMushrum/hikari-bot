@@ -70,7 +70,7 @@ func main() {
 	bot, err := tele.NewBot(tele.Settings{
 		Token:       os.Getenv("HIKARI_BOT_TOKEN"),
 		Poller:      &tele.LongPoller{Timeout: 10 * time.Second},
-		Synchronous: true,
+		Synchronous: true, // Bottleneck
 	})
 
 	if err != nil {
@@ -87,7 +87,7 @@ func main() {
 
 	dbConn, err := connectToDatabase(dsn)
 	if err != nil {
-		log.Fatalf("Couldn't establish connection to PostgreSQL!\n%v", err)
+		log.Fatalf("Couldn't establish connection to Database!\n%v", err)
 	}
 
 	dict := &jisho.JishoDict{}
