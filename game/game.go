@@ -18,20 +18,28 @@ const (
 	PoisonedId          = -1
 )
 
-const (
-	word1 = "めいし"
-	word2 = "りんご"
-	word3 = "しお"
-	word4 = "にんぎょう"
-	word5 = "にっき"
-	word6 = "しゅうまつ"
-)
+var hiragana = []string{
+	"あ", "い", "う", "え", "お",
+	"か", "き", "く", "け", "こ",
+	"さ", "し", "す", "せ", "そ",
+	"た", "ち", "つ", "て", "と",
+	"な", "に", "ぬ", "ね", "の",
+	"は", "ひ", "ふ", "へ", "ほ",
+	"ま", "み", "む", "め", "も",
+	"や", "ゆ", "よ",
+	"ら", "り", "る", "れ", "ろ",
+	"わ",
+	"が", "ぎ", "ぐ", "げ", "ご",
+	"ざ", "じ", "ず", "ぜ", "ぞ",
+	"だ", "ぢ", "づ", "で", "ど",
+	"ば", "び", "ぶ", "べ", "ぼ",
+	"ぱ", "ぴ", "ぷ", "ぺ", "ぽ",
+}
 
 func RandomizeStart(ctx util.GameContext) {
-	words := []string{word1, word2, word3, word4, word5, word6}
-	initWord := words[rand.Intn(len(words))]
-	dao.AddWord(ctx.DbConn, initWord, initWord, "DUMMY_USER")
-	util.Reply(ctx.TeleCtx, fmt.Sprintf("Первое слово: %s", initWord))
+	initKana := hiragana[rand.Intn(len(hiragana))]
+	dao.AddWord(ctx.DbConn, initKana, initKana, "DUMMY_USER")
+	util.Reply(ctx.TeleCtx, fmt.Sprintf("Первая кана: %s", initKana))
 }
 
 func AddPlayer(ctx util.GameContext) {
