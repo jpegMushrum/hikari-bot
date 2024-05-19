@@ -39,5 +39,4 @@ func TestFilters(t *testing.T) {
 	assert.Equal(t, GetLastKana("ラジぉ"), GetFirstKana("オにぎり"))
 	assert.Equal(t, GetLastKana("ジジ"), GetFirstKana("じごく"))
 	assert.Equal(t, GetLastKana("パパ"), GetFirstKana("ぱら"))
-
 }

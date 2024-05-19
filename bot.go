@@ -68,8 +68,9 @@ func connectToDatabase(dsn string) (*gorm.DB, error) {
 func main() {
 
 	bot, err := tele.NewBot(tele.Settings{
-		Token:  os.Getenv("HIKARI_BOT_TOKEN"),
-		Poller: &tele.LongPoller{Timeout: 10 * time.Second},
+		Token:       os.Getenv("HIKARI_BOT_TOKEN"),
+		Poller:      &tele.LongPoller{Timeout: 10 * time.Second},
+		Synchronous: false,
 	})
 
 	if err != nil {
@@ -83,7 +84,7 @@ func main() {
 		os.Getenv("PG_PASS"),
 		os.Getenv("PG_DB"),
 	)
-	
+
 	dbConn, err := connectToDatabase(dsn)
 	if err != nil {
 		log.Fatalf("Couldn't establish connection to PostgreSQL!\n%v", err)
