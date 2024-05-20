@@ -18,7 +18,7 @@ const (
 	PoisonedId          = -1
 )
 
-var hiragana = []string{
+var possibleHiraganaStart = []string{
 	"あ", "い", "う", "え", "お",
 	"か", "き", "く", "け", "こ",
 	"さ", "し", "す", "せ", "そ",
@@ -37,7 +37,7 @@ var hiragana = []string{
 }
 
 func RandomizeStart(ctx util.GameContext) {
-	initKana := hiragana[rand.Intn(len(hiragana))]
+	initKana := possibleHiraganaStart[rand.Intn(len(possibleHiraganaStart))]
 	dao.AddWord(ctx.DbConn, initKana, initKana, "DUMMY_USER")
 	util.Reply(ctx.TeleCtx, fmt.Sprintf("Первая кана: %s", initKana))
 }
