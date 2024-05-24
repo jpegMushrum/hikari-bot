@@ -7,4 +7,4 @@
 
 ## Используемые словари
 + [Jisho](https://jisho.org/)
-+ [Яркси](http://yarxi.ru/) (в планах)
++ [JMDict-Yomitan Russian](https://github.com/themoeway/jmdict-yomitan) (в планах)
