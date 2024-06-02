@@ -6,8 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const TestFailed = "TEST FAILED"
-
 const (
 	KatakanaOnly  = "スキー"
 	HiraganaOnly  = "はらきり"
@@ -19,7 +17,7 @@ const (
 )
 
 func TestKana(t *testing.T) {
-	dict := JishoDict{}
+	dict := Jisho{}
 	jr, _ := dict.Search(KatakanaOnly)
 	assert.True(t, jr.HasEntries())
 	kana, _ := jr.RelevantKana()
@@ -32,14 +30,14 @@ func TestKana(t *testing.T) {
 }
 
 func TestBlank(t *testing.T) {
-	dict := JishoDict{}
+	dict := Jisho{}
 
 	jr, _ := dict.Search(Blank)
 	assert.False(t, jr.HasEntries())
 }
 
 func TestKanji(t *testing.T) {
-	dict := JishoDict{}
+	dict := Jisho{}
 
 	jr, _ := dict.Search(Kanji1)
 	assert.True(t, jr.HasEntries())
