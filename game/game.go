@@ -2,7 +2,7 @@ package game
 
 import (
 	"bakalover/hikari-bot/dao"
-	"bakalover/hikari-bot/dict/jisho"
+	"bakalover/hikari-bot/dict"
 	"bakalover/hikari-bot/util"
 	"fmt"
 	"log"
@@ -107,7 +107,7 @@ func ForceStop() {
 	SetThreadId(PoisonedId)
 }
 
-func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
+func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
 	if !PlayerExists(ctx) {
 		AddPlayer(ctx)
 	}
@@ -116,17 +116,38 @@ func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
 
 	if IsJapSuitable(nextWord) {
 		lastWord, lastKana := LastWord(ctx)
-
 		log.Printf("Last Word: %s, %s", lastWord, lastKana)
-		nextWordResponse, err := dict.Search(nextWord)
 
-		if err != nil {
-			log.Println(err)
+		nextResponses := make(map[dict.Dictionary]dict.Response)
+
+		// All ops excluding translation performing on first available dict aka Leader Dict
+		var leaderDict dict.Dictionary
+
+		isElected := false
+
+		// Different Responses???
+		for _, dict := range dicts {
+			nextResponse, err := dict.Search(nextWord)
+			if err != nil {
+				log.Printf("Не удалось найти слово в словаре %v: %v", dict.Repr(), err)
+			} else {
+				if !isElected {
+					leaderDict = dict
+				}
+				nextResponses[dict] = nextResponse
+			}
+		}
+
+		if len(nextResponses) == 0 {
 			util.Reply(ctx.TeleCtx, "словари недоступны =(")
 			return
 		}
 
-		nextSpeechPart, err := nextWordResponse.RelevantSpeechPart()
+		nextLeaderResponse := nextResponses[leaderDict]
+
+		nextSpeechParts, err := nextLeaderResponse.RelevantSpeechParts()
+
+		log.Printf("Части речи: %v", nextSpeechParts)
 
 		if err != nil {
 			log.Println(err)
@@ -134,7 +155,7 @@ func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
 			return
 		}
 
-		nextKanaSearched, err := nextWordResponse.RelevantKana()
+		nextKanaSearched, err := nextLeaderResponse.RelevantKana()
 
 		if err != nil {
 			log.Println(err)
@@ -142,7 +163,7 @@ func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
 			return
 		}
 
-		nextWordSearched, err := nextWordResponse.RelevantWord()
+		nextWordSearched, err := nextLeaderResponse.RelevantWord()
 
 		if err != nil {
 			log.Println(err)
@@ -150,20 +171,12 @@ func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
 			return
 		}
 
-		nextWordDefinition, err := nextWordResponse.RelevantDefinition()
-
-		if err != nil {
-			log.Println(err)
-			util.Reply(ctx.TeleCtx, err.Error())
-			return
-		}
-
-		if !HasEntries(&nextWordResponse) {
+		if !HasEntries(nextLeaderResponse) {
 			util.Reply(ctx.TeleCtx, "К сожалению, я не знаю такого слова(")
 			return
 		}
 
-		if !IsNoun(nextSpeechPart) {
+		if !ContainsNoun(nextSpeechParts, leaderDict) {
 			util.Reply(ctx.TeleCtx, "Слово не является существительным!")
 			return
 		}
@@ -188,14 +201,24 @@ func HandleNextWord(ctx util.GameContext, dict *jisho.JishoDict) {
 		}
 
 		if GetLastKana(lastKana) == GetFirstKana(nextKanaSearched) {
-			util.Reply(ctx.TeleCtx,
-				fmt.Sprintf("%v, cлово подходит!\n%s「%s」(%s)",
-					ctx.TeleCtx.Message().Sender.FirstName,
-					nextWordSearched,
-					nextKanaSearched,
-					nextWordDefinition,
-				),
+			wordInfo := fmt.Sprintf("%v, cлово подходит!\n%s「%s」\n-----------------------\n",
+				ctx.TeleCtx.Message().Sender.FirstName,
+				nextWordSearched,
+				nextKanaSearched,
 			)
+
+			for dict, nextResponse := range nextResponses {
+				nextDefinition, err := nextResponse.RelevantDefinition()
+				if err == nil {
+					wordInfo += fmt.Sprintf(
+						"- %v: %v\n",
+						dict.Repr(),
+						nextDefinition,
+					)
+				}
+			}
+
+			util.Reply(ctx.TeleCtx, wordInfo)
 
 			AddWord(ctx, nextWordSearched, nextKanaSearched)
 

@@ -2,7 +2,6 @@ package jisho
 
 import (
 	"errors"
-	"strings"
 )
 
 type Meta struct {
@@ -79,18 +78,18 @@ func (jsr *JishoResponse) RelevantWord() (string, error) {
 	return word, nil
 }
 
-func (jsr *JishoResponse) RelevantSpeechPart() (string, error) {
+func (jsr *JishoResponse) RelevantSpeechParts() ([]string, error) {
 
 	if len(jsr.Data) < 1 {
-		return "", errors.New("нельзя определить часть речи =(")
+		return nil, errors.New("нельзя определить часть речи =(")
 	}
 	if len(jsr.Data[0].Senses) < 1 {
-		return "", errors.New("нельзя определить часть речи =(")
+		return nil, errors.New("нельзя определить часть речи =(")
 	}
 	if len(jsr.Data[0].Senses[0].SpeechParts) < 1 {
-		return "", errors.New("нельзя определить часть речи =(")
+		return nil, errors.New("нельзя определить часть речи =(")
 	}
-	return strings.ToLower(jsr.Data[0].Senses[0].SpeechParts[0]), nil
+	return jsr.Data[0].Senses[0].SpeechParts, nil
 }
 
 func (jsr *JishoResponse) Words() []string {

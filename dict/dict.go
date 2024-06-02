@@ -6,11 +6,12 @@ type Response interface {
 	RelevantWord() (string, error)
 	Kanas() []string
 	Words() []string
-	RelevantSpeechPart() (string, error)
+	RelevantSpeechParts() ([]string, error)
 	RelevantDefinition() (string, error)
 }
 
 type Dictionary interface {
 	Search(key string) (Response, error)
 	NounRepr() string
+	Repr() string
 }

@@ -1,6 +1,7 @@
 package jisho
 
 import (
+	"bakalover/hikari-bot/dict"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,14 +19,18 @@ const (
 
 type Jisho struct{}
 
-func (jisho *Jisho) Search(key string) (JishoResponse, error) {
+func NewJisho() *Jisho {
+	return &Jisho{}
+}
+
+func (jisho *Jisho) Search(key string) (dict.Response, error) {
 	var jr JishoResponse
 	var err error
 
 	for i := 0; i < MaxRetries; i++ {
 		jr, err = jisho.searchAttempt(key)
 		if err == nil {
-			return jr, nil 
+			return &jr, nil
 		}
 
 		if netErr, ok := err.(interface{ Timeout() bool }); ok && netErr.Timeout() {
@@ -34,10 +39,10 @@ func (jisho *Jisho) Search(key string) (JishoResponse, error) {
 			continue
 		}
 
-		return jr, err
+		return &jr, err
 	}
 
-	return jr, fmt.Errorf("max retries exceeded: %w", err)
+	return &jr, fmt.Errorf("max retries exceeded: %w", err)
 }
 
 func (jisho *Jisho) searchAttempt(key string) (JishoResponse, error) {
@@ -59,5 +64,9 @@ func (jisho *Jisho) searchAttempt(key string) (JishoResponse, error) {
 }
 
 func (j *Jisho) NounRepr() string {
-	return "noun"
+	return "Noun"
+}
+
+func (j *Jisho) Repr() string {
+	return "Jisho"
 }
