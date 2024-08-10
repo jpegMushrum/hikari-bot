@@ -195,7 +195,7 @@ func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
 			return
 		}
 
-		if IsDoubled(ctx, nextWord) {
+		if IsDoubled(ctx, nextWordSearched) {
 			util.Reply(ctx.TeleCtx, "Такое слово уже было")
 			return
 		}
