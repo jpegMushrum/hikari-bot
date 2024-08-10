@@ -1,8 +1,6 @@
 package dao
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
