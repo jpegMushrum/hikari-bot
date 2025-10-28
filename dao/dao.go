@@ -9,10 +9,11 @@ type Word struct {
 	Word     string
 	Kana     string
 	Username string
+	UserID   int64
 }
 
 type Player struct {
-	ID        int    `gorm:"primaryKey;autoIncrement"`
+	ID        int64  `gorm:"primaryKey"`
 	FirstName string //Pretty stats at the end
 	Username  string
 	Score     uint64
@@ -33,8 +34,8 @@ func ShutDown(db *gorm.DB) {
 	db.Migrator().DropTable(&Player{}, &Word{})
 }
 
-func AddPlayer(db *gorm.DB, username string, firstName string) {
-	db.Create(&Player{Username: username, Score: 0, FirstName: firstName})
+func AddPlayer(db *gorm.DB, id int64, username string, firstName string) {
+	db.Create(&Player{ID: id, Username: username, Score: 0, FirstName: firstName})
 }
 
 func AllPlayers(db *gorm.DB) []Player {
@@ -49,9 +50,9 @@ func CheckPlayerExistence(db *gorm.DB, username string) bool {
 	return len(players) != 0
 }
 
-func AddWord(db *gorm.DB, word string, kana string, from string) {
-	db.Create(&Word{Username: from, Word: word, Kana: kana})
-	db.Model(&Player{}).Where("username = ?", from).
+func AddWord(db *gorm.DB, word string, kana string, username string, userID int64) {
+	db.Create(&Word{UserID: userID, Username: username, Word: word, Kana: kana})
+	db.Model(&Player{}).Where("username = ?", username).
 		Update("score", gorm.Expr("score + ?", 1))
 }
 
@@ -64,6 +65,12 @@ func LastWord(db *gorm.DB) (string, string) {
 	var lastWord Word
 	db.Last(&lastWord)
 	return lastWord.Word, lastWord.Kana
+}
+
+func LastPlayer(db *gorm.DB) int64 {
+	var lastWord Word
+	db.Last(&lastWord)
+	return lastWord.UserID
 }
 
 func CheckWordExistence(db *gorm.DB, word string) bool {

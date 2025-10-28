@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	_ "github.com/lib/pq"
+	"gopkg.in/telebot.v3"
 )
 
 const (
@@ -127,7 +128,7 @@ func IsDoubled(ctx util.GameContext, word string) bool {
 
 func ContainsNoun(speechParts []string, dict dict.Dictionary) bool {
 	check := false
-	for _, s := range speechParts{
+	for _, s := range speechParts {
 		check = check || (s == dict.NounRepr())
 	}
 	return check
@@ -157,4 +158,10 @@ func IsNotBlank(word string) bool {
 
 func IsJapSuitable(word string) bool {
 	return IsNotBlank(word) && IsJapanese(word)
+}
+
+func IsTheLastPerson(user *telebot.User, ctx util.GameContext) bool {
+	lastPlayer := int64(dao.LastPlayer(ctx.DbConn))
+	log.Printf("Checking if %v == %v\n", user.ID, lastPlayer)
+	return user.ID == int64(dao.LastPlayer(ctx.DbConn))
 }

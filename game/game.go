@@ -38,12 +38,12 @@ var possibleHiraganaStart = []string{
 
 func RandomizeStart(ctx util.GameContext) {
 	initKana := possibleHiraganaStart[rand.Intn(len(possibleHiraganaStart))]
-	dao.AddWord(ctx.DbConn, initKana, initKana, "DUMMY_USER")
+	dao.AddWord(ctx.DbConn, initKana, initKana, "DUMMY_USER", 0)
 	util.Reply(ctx.TeleCtx, fmt.Sprintf("Первая кана: %s", initKana))
 }
 
 func AddPlayer(ctx util.GameContext) {
-	dao.AddPlayer(ctx.DbConn, util.Username(ctx.TeleCtx), util.FirstName(ctx.TeleCtx))
+	dao.AddPlayer(ctx.DbConn, util.ID(ctx.TeleCtx), util.Username(ctx.TeleCtx), util.FirstName(ctx.TeleCtx))
 	util.Reply(ctx.TeleCtx, fmt.Sprintf("%s, добро пожаловать в игру!", util.FirstName(ctx.TeleCtx)))
 }
 
@@ -69,7 +69,7 @@ func AllPlayers(ctx util.GameContext) []dao.Player {
 }
 
 func AddWord(ctx util.GameContext, word string, kana string) {
-	dao.AddWord(ctx.DbConn, word, kana, util.Username(ctx.TeleCtx))
+	dao.AddWord(ctx.DbConn, word, kana, util.Username(ctx.TeleCtx), util.ID(ctx.TeleCtx))
 }
 
 func NullifyScore(ctx util.GameContext) {
@@ -113,6 +113,12 @@ func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
 	}
 
 	nextWord := ctx.TeleCtx.Text()
+	nextPerson := ctx.TeleCtx.Sender()
+
+	if IsTheLastPerson(nextPerson, ctx) {
+		util.Reply(ctx.TeleCtx, fmt.Sprintf("Неправильная очередь, %s добавил прошлое слово!", nextPerson.FirstName))
+		return
+	}
 
 	if IsJapSuitable(nextWord) {
 		lastWord, lastKana := LastWord(ctx)
@@ -171,36 +177,40 @@ func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
 			return
 		}
 
-		if !HasEntries(nextLeaderResponse) {
+		switch {
+		case !HasEntries(nextLeaderResponse):
 			util.Reply(ctx.TeleCtx, "К сожалению, я не знаю такого слова(")
 			return
-		}
 
-		if !ContainsNoun(nextSpeechParts, leaderDict) {
+		case !IsJapanese(nextWordSearched):
+			util.Reply(ctx.TeleCtx, "Слово не на японском языке!")
+			return
+
+		case !ContainsNoun(nextSpeechParts, leaderDict):
 			util.Reply(ctx.TeleCtx, "Слово не является существительным!")
 			return
-		}
 
-		if IsShadowed(nextWordSearched, nextKanaSearched, nextWord) {
+		case IsShadowed(nextWordSearched, nextKanaSearched, nextWord):
 			util.Reply(ctx.TeleCtx, "К сожалению, я не знаю такого слова(")
 			return
-		}
 
-		if IsEnd(nextKanaSearched) {
+		case IsEnd(nextKanaSearched):
 			util.Reply(ctx.TeleCtx, "Раунд завершён, введено завершающее слово!")
 			NullifyScore(ctx)
 			ForceStop()
 			FormAndSendStats(ctx)
 			ClearData(ctx)
 			return
-		}
 
-		if IsDoubled(ctx, nextWordSearched) {
+		case IsDoubled(ctx, nextWordSearched):
 			util.Reply(ctx.TeleCtx, "Такое слово уже было")
 			return
-		}
 
-		if GetLastKana(lastKana) == GetFirstKana(nextKanaSearched) {
+		case GetLastKana(lastKana) != GetFirstKana(nextKanaSearched):
+			util.Reply(ctx.TeleCtx, "Слово нельзя присоединить(")
+			return
+
+		case GetLastKana(lastKana) == GetFirstKana(nextKanaSearched):
 			wordInfo := fmt.Sprintf("%v, cлово подходит!\n%s「%s」\n-----------------------\n",
 				ctx.TeleCtx.Message().Sender.FirstName,
 				nextWordSearched,
@@ -219,16 +229,14 @@ func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
 			}
 
 			util.Reply(ctx.TeleCtx, wordInfo)
-
 			AddWord(ctx, nextWordSearched, nextKanaSearched)
-
 			util.Reply(ctx.TeleCtx,
 				fmt.Sprintf("Следующее слово начинается с: 「%c」",
 					GetLastKana(nextKanaSearched),
 				),
 			)
 
-		} else {
+		default:
 			util.Reply(ctx.TeleCtx, "Слово нельзя присоединить(")
 			return
 		}

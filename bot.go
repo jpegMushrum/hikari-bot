@@ -67,11 +67,12 @@ func connectToDatabase(dsn string) (*gorm.DB, error) {
 }
 
 func main() {
+	log.Println("Running hikari-bot v1.0.1")
 
 	bot, err := tele.NewBot(tele.Settings{
 		Token:       os.Getenv("HIKARI_BOT_TOKEN"),
 		Poller:      &tele.LongPoller{Timeout: 10 * time.Second},
-		Synchronous: true, 
+		Synchronous: true,
 	})
 
 	if err != nil {
@@ -89,6 +90,8 @@ func main() {
 	dbConn, err := connectToDatabase(dsn)
 	if err != nil {
 		log.Fatalf("Couldn't establish connection to Database!\n%v", err)
+	} else {
+		log.Println("Database connection established!")
 	}
 
 	// Info sources
@@ -118,6 +121,7 @@ func main() {
 	})
 
 	bot.Handle(tele.OnText, func(c tele.Context) error {
+		log.Printf("Handling command: %s; from %s", c.Text(), c.Sender().FirstName)
 		if strings.HasPrefix(c.Text(), "/") { // Filter unused commands
 			util.Reply(c, UnknownCommand)
 			return nil
