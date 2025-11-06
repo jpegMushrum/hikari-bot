@@ -1,6 +1,9 @@
 package dao
 
 import (
+	"fmt"
+	"log"
+
 	"gorm.io/gorm"
 )
 
@@ -30,8 +33,17 @@ func Init(db *gorm.DB) {
 	db.AutoMigrate(&Player{})
 }
 
-func ShutDown(db *gorm.DB) {
-	db.Migrator().DropTable(&Player{}, &Word{})
+func ClearTables(db *gorm.DB) {
+	var tables []string
+	if err := db.Raw(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`).Scan(&tables).Error; err != nil {
+		log.Printf("err: %v\n", err)
+	}
+
+	for _, t := range tables {
+		if err := db.Exec(fmt.Sprintf("TRUNCATE TABLE %s RESTART IDENTITY CASCADE;", t)).Error; err != nil {
+			log.Printf("failed to truncate %s: %v\n", t, err)
+		}
+	}
 }
 
 func AddPlayer(db *gorm.DB, id int64, username string, firstName string) {

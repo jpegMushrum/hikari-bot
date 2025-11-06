@@ -56,7 +56,7 @@ func InitData(ctx util.GameContext) {
 }
 
 func ClearData(ctx util.GameContext) {
-	dao.ShutDown(ctx.DbConn)
+	dao.ClearTables(ctx.DbConn)
 }
 
 func LastWord(ctx util.GameContext) (string, string) {
