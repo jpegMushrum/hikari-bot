@@ -3,7 +3,10 @@ package dao
 import (
 	"fmt"
 	"log"
+	"strings"
+	"time"
 
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -22,71 +25,162 @@ type Player struct {
 	Score     uint64
 }
 
-func Init(db *gorm.DB) {
-	if db.Migrator().HasTable(&Word{}) {
-		db.Migrator().DropTable(&Word{})
-	}
-	if db.Migrator().HasTable(&Player{}) {
-		db.Migrator().DropTable(&Player{})
-	}
-	db.AutoMigrate(&Word{})
-	db.AutoMigrate(&Player{})
-}
+const (
+	maxRetries          = 3
+	delayBetweenRetries = 2 * time.Second
+)
 
-func ClearTables(db *gorm.DB) {
-	var tables []string
-	if err := db.Raw(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`).Scan(&tables).Error; err != nil {
-		log.Printf("err: %v\n", err)
-	}
-
-	for _, t := range tables {
-		if err := db.Exec(fmt.Sprintf("TRUNCATE TABLE %s RESTART IDENTITY CASCADE;", t)).Error; err != nil {
-			log.Printf("failed to truncate %s: %v\n", t, err)
+func connectToDatabase(dsn string) (*gorm.DB, error) {
+	var dbConn *gorm.DB
+	var err error
+	for i := 1; i <= maxRetries; i++ {
+		dbConn, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err == nil {
+			log.Println("Connect to PostgreSQL")
+			return dbConn, nil
 		}
+		log.Printf("Couldn't connect to PostgreSQL (attempt %d/%d): %v\nRetrying in %v...", i, maxRetries, err, delayBetweenRetries)
+		time.Sleep(delayBetweenRetries)
 	}
+	return nil, err
 }
 
-func AddPlayer(db *gorm.DB, id int64, username string, firstName string) {
-	db.Create(&Player{ID: id, Username: username, Score: 0, FirstName: firstName})
+type DBConnection struct {
+	dsn    string
+	dbConn *gorm.DB
+	Error  error
 }
 
-func AllPlayers(db *gorm.DB) []Player {
+func NewConnection(dsn string) (*DBConnection, error) {
+	dbConn, err := connectToDatabase(dsn)
+	if err != nil {
+		return nil, err
+	}
+	return &DBConnection{dsn: dsn, dbConn: dbConn}, nil
+}
+
+func isConnectionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "connection reset") ||
+		strings.Contains(msg, "broken pipe") ||
+		strings.Contains(msg, "connection already closed") ||
+		strings.Contains(msg, "database is closed") ||
+		strings.Contains(msg, "eof") ||
+		strings.Contains(msg, "no such host") ||
+		strings.Contains(msg, "network is unreachable")
+}
+
+func (dbc *DBConnection) doWithRetryConnection(fn func(*gorm.DB) error) error {
+	err := fn(dbc.dbConn)
+	if err == nil {
+		return nil
+	}
+
+	if isConnectionError(err) {
+		log.Println("Lost DB connection, reconnecting...")
+		newDB, connErr := connectToDatabase(dbc.dsn)
+		if connErr != nil {
+			return fmt.Errorf("reconnect failed: %w", connErr)
+		}
+		dbc.dbConn = newDB
+		err = fn(dbc.dbConn)
+	}
+
+	return err
+}
+
+func (dbc *DBConnection) Init() {
+	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
+		_ = db.Migrator().DropTable(&Word{}, &Player{})
+		return db.AutoMigrate(&Word{}, &Player{})
+	})
+}
+
+func (dbc *DBConnection) ClearTables() {
+	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
+		var tables []string
+		if err := db.Raw(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`).Scan(&tables).Error; err != nil {
+			return err
+		}
+		for _, t := range tables {
+			if err := db.Exec(fmt.Sprintf("TRUNCATE TABLE %s RESTART IDENTITY CASCADE;", t)).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (dbc *DBConnection) AddPlayer(id int64, username, firstName string) error {
+	return dbc.doWithRetryConnection(func(db *gorm.DB) error {
+		return db.Create(&Player{ID: id, Username: username, FirstName: firstName, Score: 0}).Error
+	})
+}
+
+func (dbc *DBConnection) AllPlayers() []Player {
 	var players []Player
-	db.Model(&Player{}).Find(&players)
+	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
+		return db.Find(&players).Error
+	})
+
 	return players
 }
 
-func CheckPlayerExistence(db *gorm.DB, username string) bool {
-	var players []Player
-	db.Model(&Player{}).Where("username = ?", username).Find(&players)
-	return len(players) != 0
+func (dbc *DBConnection) CheckPlayerExistence(username string) bool {
+	var count int64
+	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
+		return db.Model(&Player{}).Where("username = ?", username).Count(&count).Error
+	})
+	return count > 0
 }
 
-func AddWord(db *gorm.DB, word string, kana string, username string, userID int64) {
-	db.Create(&Word{UserID: userID, Username: username, Word: word, Kana: kana})
-	db.Model(&Player{}).Where("username = ?", username).
-		Update("score", gorm.Expr("score + ?", 1))
+func (dbc *DBConnection) AddWord(word, kana, username string, userID int64) {
+	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
+		if err := db.Create(&Word{UserID: userID, Username: username, Word: word, Kana: kana}).Error; err != nil {
+			return err
+		}
+		return db.Model(&Player{}).Where("username = ?", username).
+			Update("score", gorm.Expr("score + 1")).Error
+	})
 }
 
-func SetScore(db *gorm.DB, player string, to uint64) {
-	db.Model(&Player{}).Where("username = ?", player).
-		Update("score", to)
+func (dbc *DBConnection) SetScore(username string, score uint64) {
+	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
+		return db.Model(&Player{}).Where("username = ?", username).
+			Update("score", score).Error
+	})
 }
 
-func LastWord(db *gorm.DB) (string, string) {
-	var lastWord Word
-	db.Last(&lastWord)
-	return lastWord.Word, lastWord.Kana
+func (dbc *DBConnection) LastWord() (string, string) {
+	var last Word
+	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
+		return db.Last(&last).Error
+	})
+	return last.Word, last.Kana
 }
 
-func LastPlayer(db *gorm.DB) int64 {
-	var lastWord Word
-	db.Last(&lastWord)
-	return lastWord.UserID
+func (dbc *DBConnection) LastPlayer() int64 {
+	var last Word
+	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
+		return db.Last(&last).Error
+	})
+
+	return last.UserID
 }
 
-func CheckWordExistence(db *gorm.DB, word string) bool {
-	var words []Word
-	db.Model(&Word{}).Where("word = ?", word).Find(&words)
-	return len(words) != 0
+func (dbc *DBConnection) CheckWordExistence(word string) bool {
+	var count int64
+	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
+		return db.Model(&Word{}).Where("word = ?", word).Count(&count).Error
+	})
+
+	return count > 0
+}
+
+func (dbc *DBConnection) Reset() {
+	dbc.Error = nil
 }

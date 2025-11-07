@@ -37,43 +37,87 @@ var possibleHiraganaStart = []string{
 }
 
 func RandomizeStart(ctx util.GameContext) {
+	db := ctx.DbConn
+	if db.Error != nil {
+		return
+	}
+
 	initKana := possibleHiraganaStart[rand.Intn(len(possibleHiraganaStart))]
-	dao.AddWord(ctx.DbConn, initKana, initKana, "DUMMY_USER", 0)
+	db.AddWord(initKana, initKana, "DUMMY_USER", 0)
 	util.Reply(ctx.TeleCtx, fmt.Sprintf("Первая кана: %s", initKana))
 }
 
 func AddPlayer(ctx util.GameContext) {
-	dao.AddPlayer(ctx.DbConn, util.ID(ctx.TeleCtx), util.Username(ctx.TeleCtx), util.FirstName(ctx.TeleCtx))
+	db := ctx.DbConn
+	if db.Error != nil {
+		return
+	}
+
+	db.AddPlayer(util.ID(ctx.TeleCtx), util.Username(ctx.TeleCtx), util.FirstName(ctx.TeleCtx))
 	util.Reply(ctx.TeleCtx, fmt.Sprintf("%s, добро пожаловать в игру!", util.FirstName(ctx.TeleCtx)))
 }
 
 func PlayerExists(ctx util.GameContext) bool {
-	return dao.CheckPlayerExistence(ctx.DbConn, util.Username(ctx.TeleCtx))
+	db := ctx.DbConn
+	if db.Error != nil {
+		return false
+	}
+
+	return db.CheckPlayerExistence(util.Username(ctx.TeleCtx))
 }
 
 func InitData(ctx util.GameContext) {
-	dao.Init(ctx.DbConn)
+	db := ctx.DbConn
+	if db.Error != nil {
+		return
+	}
+
+	db.Init()
 }
 
 func ClearData(ctx util.GameContext) {
-	dao.ClearTables(ctx.DbConn)
+	db := ctx.DbConn
+	if db.Error != nil {
+		return
+	}
+
+	db.ClearTables()
 }
 
 func LastWord(ctx util.GameContext) (string, string) {
-	return dao.LastWord(ctx.DbConn)
+	db := ctx.DbConn
+	if db.Error != nil {
+		return "", ""
+	}
+
+	return db.LastWord()
 }
 
-// This is bad, really bad
 func AllPlayers(ctx util.GameContext) []dao.Player {
-	return dao.AllPlayers(ctx.DbConn)
+	db := ctx.DbConn
+	if db.Error != nil {
+		return nil
+	}
+
+	return db.AllPlayers()
 }
 
 func AddWord(ctx util.GameContext, word string, kana string) {
-	dao.AddWord(ctx.DbConn, word, kana, util.Username(ctx.TeleCtx), util.ID(ctx.TeleCtx))
+	db := ctx.DbConn
+	if db.Error != nil {
+		return
+	}
+
+	db.AddWord(word, kana, util.Username(ctx.TeleCtx), util.ID(ctx.TeleCtx))
 }
 
 func NullifyScore(ctx util.GameContext) {
-	dao.SetScore(ctx.DbConn, util.Username(ctx.TeleCtx), 0)
+	db := ctx.DbConn
+	if db.Error != nil {
+		return
+	}
+
+	db.SetScore(util.Username(ctx.TeleCtx), 0)
 }
 
 func HandleCommand(ctx util.GameContext) {
@@ -108,8 +152,15 @@ func ForceStop() {
 }
 
 func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
+	ctx.DbConn.Reset()
+
 	if !PlayerExists(ctx) {
 		AddPlayer(ctx)
+	}
+
+	if ctx.DbConn.Error != nil {
+		util.Reply(ctx.TeleCtx, "Бот упал, обратитесь к админу!")
+		return
 	}
 
 	nextWord := ctx.TeleCtx.Text()
@@ -128,7 +179,6 @@ func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
 
 		// All ops excluding translation performing on first available dict aka Leader Dict
 		var leaderDict dict.Dictionary
-
 		isElected := false
 
 		// Different Responses???
@@ -139,6 +189,7 @@ func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
 			} else {
 				if !isElected {
 					leaderDict = dict
+					isElected = true
 				}
 				nextResponses[dict] = nextResponse
 			}
@@ -150,7 +201,6 @@ func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
 		}
 
 		nextLeaderResponse := nextResponses[leaderDict]
-
 		nextSpeechParts, err := nextLeaderResponse.RelevantSpeechParts()
 
 		log.Printf("Части речи: %v", nextSpeechParts)
@@ -162,7 +212,6 @@ func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
 		}
 
 		nextKanaSearched, err := nextLeaderResponse.RelevantKana()
-
 		if err != nil {
 			log.Println(err)
 			util.Reply(ctx.TeleCtx, err.Error())
@@ -170,7 +219,6 @@ func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
 		}
 
 		nextWordSearched, err := nextLeaderResponse.RelevantWord()
-
 		if err != nil {
 			log.Println(err)
 			util.Reply(ctx.TeleCtx, err.Error())
@@ -178,6 +226,10 @@ func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
 		}
 
 		switch {
+		case ctx.DbConn.Error != nil:
+			util.Reply(ctx.TeleCtx, "Бот упал, обратитесь к админу!")
+			return
+
 		case !HasEntries(nextLeaderResponse):
 			util.Reply(ctx.TeleCtx, "К сожалению, я не знаю такого слова(")
 			return
@@ -195,7 +247,8 @@ func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
 			return
 
 		case IsEnd(nextKanaSearched):
-			util.Reply(ctx.TeleCtx, "Раунд завершён, введено завершающее слово!")
+			wordInfo := WordInfo(ctx, "Слово не подходит", nextWordSearched, nextKanaSearched, nextResponses)
+			util.Reply(ctx.TeleCtx, "Раунд завершён, введено завершающее слово!\n"+wordInfo)
 			NullifyScore(ctx)
 			ForceStop()
 			FormAndSendStats(ctx)
@@ -211,22 +264,7 @@ func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
 			return
 
 		case GetLastKana(lastKana) == GetFirstKana(nextKanaSearched):
-			wordInfo := fmt.Sprintf("%v, cлово подходит!\n%s「%s」\n-----------------------\n",
-				ctx.TeleCtx.Message().Sender.FirstName,
-				nextWordSearched,
-				nextKanaSearched,
-			)
-
-			for dict, nextResponse := range nextResponses {
-				nextDefinition, err := nextResponse.RelevantDefinition()
-				if err == nil {
-					wordInfo += fmt.Sprintf(
-						"- %v: %v\n",
-						dict.Repr(),
-						nextDefinition,
-					)
-				}
-			}
+			wordInfo := WordInfo(ctx, "Слово подходит", nextWordSearched, nextKanaSearched, nextResponses)
 
 			util.Reply(ctx.TeleCtx, wordInfo)
 			AddWord(ctx, nextWordSearched, nextKanaSearched)
@@ -237,18 +275,38 @@ func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
 			)
 
 		default:
-			util.Reply(ctx.TeleCtx, "Слово нельзя присоединить(")
-			return
+			util.Reply(ctx.TeleCtx, "Неизвестная ошибка, обратитесь к админу!")
 		}
-
 	} else {
 		util.Reply(ctx.TeleCtx, "Слово не на японском языке!")
-		return
+	}
+
+	if ctx.DbConn.Error != nil {
+		log.Println(ctx.DbConn.Error)
 	}
 }
 
+func WordInfo(ctx util.GameContext, msg, word, kana string, responses map[dict.Dictionary]dict.Response) string {
+	wordInfo := fmt.Sprintf("%v, %v!\n%s「%s」\n-----------------------\n",
+		msg,
+		ctx.TeleCtx.Message().Sender.FirstName,
+		word,
+		kana,
+	)
+
+	for dict, nextResponse := range responses {
+		nextDefinition, err := nextResponse.RelevantDefinition()
+		if err == nil {
+			wordInfo += fmt.Sprintf("- %v: %v\n", dict.Repr(), nextDefinition)
+		}
+	}
+
+	return wordInfo
+}
+
 func FormAndSendStats(ctx util.GameContext) {
-	players := AllPlayers(ctx)
+	db := ctx.DbConn
+	players := db.AllPlayers()
 
 	// Sort players by score in descending order
 	sort.Slice(players, func(i, j int) bool {
@@ -256,7 +314,6 @@ func FormAndSendStats(ctx util.GameContext) {
 	})
 
 	stats := "Результаты раунда:\n"
-
 	for i, p := range players {
 		stats += fmt.Sprintf("%v) %s, Счёт: %v\n", i+1, p.FirstName, p.Score)
 	}

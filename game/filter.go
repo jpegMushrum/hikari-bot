@@ -1,7 +1,6 @@
 package game
 
 import (
-	"bakalover/hikari-bot/dao"
 	"bakalover/hikari-bot/dict"
 	"bakalover/hikari-bot/util"
 	"log"
@@ -123,7 +122,7 @@ func IsEnd(word string) bool {
 }
 
 func IsDoubled(ctx util.GameContext, word string) bool {
-	return dao.CheckWordExistence(ctx.DbConn, word)
+	return ctx.DbConn.CheckWordExistence(word)
 }
 
 func ContainsNoun(speechParts []string, dict dict.Dictionary) bool {
@@ -161,7 +160,7 @@ func IsJapSuitable(word string) bool {
 }
 
 func IsTheLastPerson(user *telebot.User, ctx util.GameContext) bool {
-	lastPlayer := int64(dao.LastPlayer(ctx.DbConn))
+	lastPlayer := ctx.DbConn.LastPlayer()
 	log.Printf("Checking if %v == %v\n", user.ID, lastPlayer)
-	return user.ID == int64(dao.LastPlayer(ctx.DbConn))
+	return user.ID == int64(lastPlayer)
 }

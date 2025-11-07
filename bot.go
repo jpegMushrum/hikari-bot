@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bakalover/hikari-bot/dao"
 	"bakalover/hikari-bot/dict"
 	"bakalover/hikari-bot/dict/jisho"
 	"bakalover/hikari-bot/game"
@@ -13,8 +14,6 @@ import (
 
 	_ "github.com/lib/pq"
 	tele "gopkg.in/telebot.v3"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
 const (
@@ -49,25 +48,8 @@ const (
 	UnknownCommand = "Неизвестная комманда"
 )
 
-func connectToDatabase(dsn string) (*gorm.DB, error) {
-	const maxRetries = 3
-	const delayBetweenRetries = time.Second
-
-	var dbConn *gorm.DB
-	var err error
-	for i := 0; i < maxRetries; i++ {
-		dbConn, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-		if err == nil {
-			return dbConn, nil
-		}
-		log.Printf("Couldn't establish connection to PostgreSQL (attempt %d), retrying in %v...\n%v", i+1, delayBetweenRetries, err)
-		time.Sleep(delayBetweenRetries)
-	}
-	return nil, err
-}
-
 func main() {
-	log.Println("Running hikari-bot v1.0.1")
+	log.Println("Running hikari-bot v1.1.0")
 
 	bot, err := tele.NewBot(tele.Settings{
 		Token:       os.Getenv("HIKARI_BOT_TOKEN"),
@@ -87,7 +69,7 @@ func main() {
 		os.Getenv("PG_DB"),
 	)
 
-	dbConn, err := connectToDatabase(dsn)
+	dbConn, err := dao.NewConnection(dsn)
 	if err != nil {
 		log.Fatalf("Couldn't establish connection to Database!\n%v", err)
 	} else {
