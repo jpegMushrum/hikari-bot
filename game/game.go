@@ -151,7 +151,8 @@ func ForceStop() {
 	SetThreadId(PoisonedId)
 }
 
-func HandleNextWord(ctx util.GameContext, dicts []dict.Dictionary) {
+func HandleNextWord(ctx util.GameContext) {
+	dicts := ctx.Dicts
 	ctx.DbConn.Reset()
 
 	if !PlayerExists(ctx) {

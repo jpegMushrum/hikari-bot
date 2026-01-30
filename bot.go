@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bakalover/hikari-bot/controller"
 	"bakalover/hikari-bot/dao"
 	"bakalover/hikari-bot/dict"
 	"bakalover/hikari-bot/dict/jisho"
@@ -49,7 +50,7 @@ const (
 )
 
 func main() {
-	log.Println("Running hikari-bot v1.1.0")
+	log.Println("Running hikari-bot v1.1.2")
 
 	bot, err := tele.NewBot(tele.Settings{
 		Token:       os.Getenv("HIKARI_BOT_TOKEN"),
@@ -82,35 +83,61 @@ func main() {
 		// Here goes JMDict and other
 	}
 
-	bot.Handle("/help", func(c tele.Context) error {
-		util.Reply(c, HelpInfo)
-		return nil
+	handlerComposit := controller.NewHandlerComposit()
+
+	handlerComposit.AddHandler("/help", &controller.SimpleHandler{
+		Inner: func(c util.GameContext) error {
+			util.Reply(c.TeleCtx, HelpInfo)
+			return nil
+		},
 	})
 
-	bot.Handle("/rules", func(c tele.Context) error {
-		util.Reply(c, Rules)
-		return nil
+	handlerComposit.AddHandler("/rules", &controller.SimpleHandler{
+		Inner: func(c util.GameContext) error {
+			util.Reply(c.TeleCtx, Rules)
+			return nil
+		},
 	})
 
-	bot.Handle("/start_game", func(c tele.Context) error {
-		game.HandleCommand(util.GameContext{DbConn: dbConn, TeleCtx: c})
-		return nil
+	handlerComposit.AddHandler("/start_game", &controller.SimpleHandler{
+		Inner: func(c util.GameContext) error {
+			game.HandleCommand(c)
+			return nil
+		},
 	})
 
-	bot.Handle("/stop_game", func(c tele.Context) error {
-		game.HandleCommand(util.GameContext{DbConn: dbConn, TeleCtx: c})
-		return nil
+	handlerComposit.AddHandler("/stop_game", &controller.SimpleHandler{
+		Inner: func(c util.GameContext) error {
+			game.HandleCommand(c)
+			return nil
+		},
 	})
+
+	handlerComposit.AddHandler(".", &controller.SimpleHandler{
+		Inner: func(c util.GameContext) error {
+			ctx := c.TeleCtx
+
+			if strings.HasPrefix(ctx.Text(), "/") { // Filter unused commands
+				util.Reply(ctx, UnknownCommand)
+				return nil
+			}
+
+			if game.Thread() == ctx.Message().ThreadID {
+				game.HandleNextWord(c)
+			}
+
+			return nil
+		},
+	})
+
+	seaker := controller.NewOverseer(handlerComposit)
 
 	bot.Handle(tele.OnText, func(c tele.Context) error {
-		log.Printf("Handling command: %s; from %s", c.Text(), c.Sender().FirstName)
-		if strings.HasPrefix(c.Text(), "/") { // Filter unused commands
-			util.Reply(c, UnknownCommand)
-			return nil
-		}
-		if game.Thread() == c.Message().ThreadID {
-			game.HandleNextWord(util.GameContext{DbConn: dbConn, TeleCtx: c}, dicts)
-		}
+		log.Printf("Handling message: %s\nfrom chat %v, thread %v, user %s", c.Text(), c.Chat().ID, c.Message().ThreadID, c.Sender().FirstName)
+
+		ctk := util.GetCTK(c)
+		seaker.SendMessage(util.GameContext{CTK: ctk, DbConn: dbConn, TeleCtx: c, Dicts: dicts})
+
 		return nil
 	})
 
