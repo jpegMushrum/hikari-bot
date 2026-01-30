@@ -12,14 +12,15 @@ import (
 )
 
 const (
-	DeadEnd = "ん"
-	LongEnd = "ー"
-	Noun    = "noun"
+	DeadEnd1 = "ん"
+	DeadEnd2 = "ン"
+	LongEnd  = "ー"
+	Noun     = "noun"
 )
 
 var SmallKana = []rune{
-	'ォ', 'ぉ', 'ァ', 'ぁ', 'ゥ', 'ぅ', 'ェ',
-	'ぇ', 'ィ', 'ぃ', 'ャ', 'ゃ', 'ョ', 'ょ',
+	'ォ', 'ぉ', 'ァ', 'ぁ', 'ゥ', 'ぅ', 'ェ', 'ぇ',
+	'ィ', 'ぃ', 'ャ', 'ゃ', 'ョ', 'ょ', 'ュ', 'ゅ',
 }
 
 var KatakanaToHiragana = map[rune]rune{
@@ -46,8 +47,8 @@ var KatakanaToHiragana = map[rune]rune{
 }
 
 var SmallKanaMappings = map[rune]rune{
-	'ォ': 'オ', 'ァ': 'ア', 'ゥ': 'ウ', 'ェ': 'エ', 'ィ': 'イ', 'ャ': 'ヤ', 'ョ': 'ヨ',
-	'ぉ': 'お', 'ぁ': 'あ', 'ぅ': 'う', 'ぇ': 'え', 'ぃ': 'い', 'ゃ': 'や', 'ょ': 'よ',
+	'ォ': 'オ', 'ァ': 'ア', 'ゥ': 'ウ', 'ェ': 'エ', 'ィ': 'イ', 'ャ': 'ヤ', 'ョ': 'ヨ', 'ュ': 'ユ',
+	'ぉ': 'お', 'ぁ': 'あ', 'ぅ': 'う', 'ぇ': 'え', 'ぃ': 'い', 'ゃ': 'や', 'ょ': 'よ', 'ゅ': 'ゆ',
 }
 
 func ToHiragana(kana rune) rune {
@@ -80,34 +81,30 @@ func ToBigKana(small rune) rune {
 	}
 }
 
-func GetLastKana(s string) int32 {
-	var ans rune = 0
+func GetLastKana(s string) rune {
+	var last rune
 
-outter_loop:
-	for i := len(s) - 1; i >= 0; i-- {
-		for _, char := range s[i:] { // Oh shit
-			if char == 'ー' { // Doesn't work with Range tables
-				return 'ー'
-			}
-			if unicode.In(char, unicode.Hiragana, unicode.Katakana, unicode.Han) {
-				ans = ToHiragana(char)
-				break outter_loop
-			}
+	for _, r := range s {
+		if r == 'ー' {
+			last = 'ー'
+			continue
+		}
+
+		if unicode.In(r, unicode.Hiragana, unicode.Katakana) {
+			last = ToHiragana(r)
 		}
 	}
 
-	if IsSmall(ans) {
-		ans = ToBigKana(ans)
+	if IsSmall(last) {
+		last = ToBigKana(last)
 	}
-	return ans
+
+	return last
 }
 
 func GetFirstKana(s string) int32 {
 	for _, char := range s {
-		if char == 'ー' { // Doesn't work with Range tables
-			return 'ー'
-		}
-		if unicode.In(char, unicode.Hiragana, unicode.Katakana, unicode.Han) {
+		if unicode.In(char, unicode.Hiragana, unicode.Katakana) {
 			return ToHiragana(char)
 		}
 	}
@@ -115,7 +112,7 @@ func GetFirstKana(s string) int32 {
 }
 
 func IsEnd(word string) bool {
-	if strings.HasSuffix(word, DeadEnd) || strings.HasSuffix(word, LongEnd) {
+	if strings.HasSuffix(word, DeadEnd1) || strings.HasSuffix(word, DeadEnd2) || strings.HasSuffix(word, LongEnd) {
 		return true
 	}
 	return false
