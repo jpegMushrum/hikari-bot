@@ -19,7 +19,7 @@ func GetCTK(ctx tele.Context) ChatThreadKey {
 	}
 }
 
-type GameContext struct {
+type WorkerContext struct {
 	CTK     ChatThreadKey
 	Dicts   []dict.Dictionary
 	TeleCtx tele.Context

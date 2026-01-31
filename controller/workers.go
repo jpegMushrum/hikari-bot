@@ -1,23 +1,38 @@
 package controller
 
 import (
+	"bakalover/hikari-bot/dao"
+	"bakalover/hikari-bot/dict"
+	"bakalover/hikari-bot/game"
 	"bakalover/hikari-bot/util"
 	"log"
 	"sync"
+
+	tele "gopkg.in/telebot.v3"
 )
 
+type WorkerContext struct {
+	Ctk     util.ChatThreadKey
+	TeleCtx tele.Context
+	Game    *game.GameState
+	Dicts   []dict.Dictionary
+	DbConn  *dao.DBConnection
+}
+
 type Worker struct {
-	ctk     util.ChatThreadKey
+	ctx     *WorkerContext
 	handler Handler
-	message chan util.GameContext
+	message chan tele.Context
 	end     chan struct{}
 }
 
 func (w *Worker) Run() {
 	for {
 		select {
-		case ctx := <-w.message:
-			err := w.handler.Handle(ctx)
+		case msg := <-w.message:
+			w.ctx.TeleCtx = msg
+
+			err := w.handler.Handle(w.ctx)
 			if err != nil {
 				log.Println(err.Error())
 			}
@@ -30,13 +45,17 @@ func (w *Worker) Run() {
 type Overseer struct {
 	handler Handler
 	workers map[util.ChatThreadKey]*Worker
+	dicts   []dict.Dictionary
+	dbConn  *dao.DBConnection
 	mu      sync.Mutex
 }
 
-func NewOverseer(handler Handler) *Overseer {
+func NewOverseer(handler Handler, dicts []dict.Dictionary, dbConn *dao.DBConnection) *Overseer {
 	return &Overseer{
 		workers: make(map[util.ChatThreadKey]*Worker),
 		handler: handler,
+		dicts:   dicts,
+		dbConn:  dbConn,
 	}
 }
 
@@ -48,10 +67,17 @@ func (o *Overseer) GetWorker(ctk util.ChatThreadKey, handler Handler) *Worker {
 		return worker
 	}
 
+	workerCtx := &WorkerContext{
+		Ctk:    ctk,
+		Game:   nil,
+		Dicts:  o.dicts,
+		DbConn: o.dbConn,
+	}
+
 	newWorker := &Worker{
-		ctk:     ctk,
 		handler: handler,
-		message: make(chan util.GameContext, 10),
+		ctx:     workerCtx,
+		message: make(chan tele.Context, 10),
 		end:     make(chan struct{}),
 	}
 
@@ -61,13 +87,11 @@ func (o *Overseer) GetWorker(ctk util.ChatThreadKey, handler Handler) *Worker {
 	return newWorker
 }
 
-func (o *Overseer) SendMessage(ctx util.GameContext) {
-	log.Println("d0")
-	worker := o.GetWorker(ctx.CTK, o.handler)
+func (o *Overseer) SendMessage(ctx tele.Context) {
+	ctk := util.GetCTK(ctx)
+	worker := o.GetWorker(ctk, o.handler)
 
-	log.Println("d1")
 	worker.message <- ctx
-	log.Println("d2")
 }
 
 func (o *Overseer) DeleteWorker(ctk util.ChatThreadKey) {

@@ -1,21 +1,12 @@
 package controller
 
 import (
-	"bakalover/hikari-bot/util"
 	"errors"
-	"log"
+	"fmt"
 )
 
 type Handler interface {
-	Handle(util.GameContext) error
-}
-
-type SimpleHandler struct {
-	Inner func(util.GameContext) error
-}
-
-func (h *SimpleHandler) Handle(ctx util.GameContext) error {
-	return h.Inner(ctx)
+	Handle(*WorkerContext) error
 }
 
 type HandlerComposit struct {
@@ -32,21 +23,20 @@ func (c *HandlerComposit) AddHandler(trigger string, handler Handler) {
 	c.handlers[trigger] = handler
 }
 
-func (c *HandlerComposit) Handle(ctx util.GameContext) error {
+func (c *HandlerComposit) Handle(ctx *WorkerContext) error {
 	trigger := ctx.TeleCtx.Text()
-	log.Println("d|")
-
 	handler, ok := c.handlers[trigger]
 	if ok {
 		return handler.Handle(ctx)
 	}
 
 	handler, ok = c.handlers["."]
-	if !ok {
-		return errors.New("Don't have handler for this command")
+	if ok {
+		return handler.Handle(ctx)
 	}
 
-	return handler.Handle(ctx)
+	return errors.New("unknown command handler error: " +
+		fmt.Sprintf("%s %v %s", ctx.TeleCtx.Chat().FirstName, ctx.Ctk.ThreadId, ctx.TeleCtx.Sender().FirstName))
 }
 
 func NewHandlerComposit() *HandlerComposit {

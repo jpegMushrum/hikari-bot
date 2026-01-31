@@ -2,7 +2,7 @@ package game
 
 import (
 	"bakalover/hikari-bot/dict"
-	"bakalover/hikari-bot/util"
+	"errors"
 	"log"
 	"strings"
 	"unicode"
@@ -12,18 +12,18 @@ import (
 )
 
 const (
-	DeadEnd1 = "ん"
-	DeadEnd2 = "ン"
-	LongEnd  = "ー"
-	Noun     = "noun"
+	deadEnd1 = "ん"
+	deadEnd2 = "ン"
+	longEnd  = "ー"
+	noun     = "noun"
 )
 
-var SmallKana = []rune{
+var smallKana = []rune{
 	'ォ', 'ぉ', 'ァ', 'ぁ', 'ゥ', 'ぅ', 'ェ', 'ぇ',
 	'ィ', 'ぃ', 'ャ', 'ゃ', 'ョ', 'ょ', 'ュ', 'ゅ',
 }
 
-var KatakanaToHiragana = map[rune]rune{
+var katakanaToHiragana = map[rune]rune{
 	// Vowels
 	'ア': 'あ', 'イ': 'い', 'ウ': 'う', 'エ': 'え', 'オ': 'お',
 	// Vowels with diacritics
@@ -46,16 +46,16 @@ var KatakanaToHiragana = map[rune]rune{
 	'パ': 'ぱ', 'ピ': 'ぴ', 'プ': 'ぷ', 'ペ': 'ぺ', 'ポ': 'ぽ',
 }
 
-var SmallKanaMappings = map[rune]rune{
+var smallKanaMappings = map[rune]rune{
 	'ォ': 'オ', 'ァ': 'ア', 'ゥ': 'ウ', 'ェ': 'エ', 'ィ': 'イ', 'ャ': 'ヤ', 'ョ': 'ヨ', 'ュ': 'ユ',
 	'ぉ': 'お', 'ぁ': 'あ', 'ぅ': 'う', 'ぇ': 'え', 'ぃ': 'い', 'ゃ': 'や', 'ょ': 'よ', 'ゅ': 'ゆ',
 }
 
-func ToHiragana(kana rune) rune {
+func toHiragana(kana rune) rune {
 	if unicode.In(kana, unicode.Hiragana) {
 		return kana
 	} else if unicode.In(kana, unicode.Katakana) {
-		if converted, ok := KatakanaToHiragana[kana]; ok {
+		if converted, ok := katakanaToHiragana[kana]; ok {
 			return converted
 		}
 	}
@@ -63,8 +63,8 @@ func ToHiragana(kana rune) rune {
 	return 0
 }
 
-func IsSmall(kana rune) bool {
-	for _, char := range SmallKana {
+func isSmall(kana rune) bool {
+	for _, char := range smallKana {
 		if char == kana {
 			return true
 		}
@@ -72,8 +72,8 @@ func IsSmall(kana rune) bool {
 	return false
 }
 
-func ToBigKana(small rune) rune {
-	if converted, ok := SmallKanaMappings[small]; ok {
+func toBigKana(small rune) rune {
+	if converted, ok := smallKanaMappings[small]; ok {
 		return converted
 	} else {
 		log.Println("Cannot find small kana to transform")
@@ -81,7 +81,7 @@ func ToBigKana(small rune) rune {
 	}
 }
 
-func GetLastKana(s string) rune {
+func getLastKana(s string) rune {
 	var last rune
 
 	for _, r := range s {
@@ -91,38 +91,38 @@ func GetLastKana(s string) rune {
 		}
 
 		if unicode.In(r, unicode.Hiragana, unicode.Katakana) {
-			last = ToHiragana(r)
+			last = toHiragana(r)
 		}
 	}
 
-	if IsSmall(last) {
-		last = ToBigKana(last)
+	if isSmall(last) {
+		last = toBigKana(last)
 	}
 
 	return last
 }
 
-func GetFirstKana(s string) int32 {
+func getFirstKana(s string) int32 {
 	for _, char := range s {
 		if unicode.In(char, unicode.Hiragana, unicode.Katakana) {
-			return ToHiragana(char)
+			return toHiragana(char)
 		}
 	}
 	return 0
 }
 
-func IsEnd(word string) bool {
-	if strings.HasSuffix(word, DeadEnd1) || strings.HasSuffix(word, DeadEnd2) || strings.HasSuffix(word, LongEnd) {
+func isEnd(word string) bool {
+	if strings.HasSuffix(word, deadEnd1) || strings.HasSuffix(word, deadEnd2) || strings.HasSuffix(word, longEnd) {
 		return true
 	}
 	return false
 }
 
-func IsDoubled(ctx util.GameContext, word string) bool {
-	return ctx.DbConn.CheckWordExistence(word)
+func (gs *GameState) isDoubled(word string) bool {
+	return gs.dbConn.CheckWordExistence(word)
 }
 
-func ContainsNoun(speechParts []string, dict dict.Dictionary) bool {
+func containsNoun(speechParts []string, dict dict.Dictionary) bool {
 	check := false
 	for _, s := range speechParts {
 		check = check || (s == dict.NounRepr())
@@ -130,16 +130,16 @@ func ContainsNoun(speechParts []string, dict dict.Dictionary) bool {
 	return check
 }
 
-func HasEntries(r dict.Response) bool {
+func hasEntries(r dict.Response) bool {
 	return r.HasEntries()
 }
 
 // Shadow help fix (jisho tries to autocomplete our words)
-func IsShadowed(word1 string, kana1 string, word2 string) bool {
+func isShadowed(word1 string, kana1 string, word2 string) bool {
 	return word1 != word2 && kana1 != word2
 }
 
-func IsJapanese(word string) bool {
+func isJapanese(word string) bool {
 	for _, char := range word {
 		if !unicode.In(char, unicode.Hiragana, unicode.Katakana, unicode.Han) && char != 'ー' {
 			return false
@@ -148,16 +148,18 @@ func IsJapanese(word string) bool {
 	return true
 }
 
-func IsNotBlank(word string) bool {
-	return len(word) != 0
+func isJapSuitable(word string) bool {
+	return len(word) != 0 && isJapanese(word)
 }
 
-func IsJapSuitable(word string) bool {
-	return IsNotBlank(word) && IsJapanese(word)
-}
+func (gs *GameState) isTheLastPerson(user *telebot.User) (bool, error) {
+	db := gs.dbConn
 
-func IsTheLastPerson(user *telebot.User, ctx util.GameContext) bool {
-	lastPlayer := ctx.DbConn.LastPlayer()
+	lastPlayer := db.LastPlayer()
+	if db.Error != nil {
+		return false, errors.New("is tha last person error:\n" + db.Error.Error())
+	}
+
 	log.Printf("Checking if %v == %v\n", user.ID, lastPlayer)
-	return user.ID == int64(lastPlayer)
+	return user.ID == int64(lastPlayer), nil
 }

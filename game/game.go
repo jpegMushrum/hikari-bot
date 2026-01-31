@@ -1,21 +1,14 @@
 package game
 
 import (
-	"bakalover/hikari-bot/dao"
 	"bakalover/hikari-bot/dict"
 	"bakalover/hikari-bot/util"
 	"fmt"
 	"log"
 	"math/rand"
 	"sort"
-)
 
-const (
-	Greetings           = "Раунд начинается!"
-	Ending              = "Результаты раунда:"
-	IsNotStartedError   = "Игра ещё не началась!"
-	AlreadyRunningError = "Игра уже запущена！"
-	PoisonedId          = -1
+	tele "gopkg.in/telebot.v3"
 )
 
 var possibleHiraganaStart = []string{
@@ -36,261 +29,224 @@ var possibleHiraganaStart = []string{
 	"ぱ", "ぴ", "ぷ", "ぺ", "ぽ",
 }
 
-func RandomizeStart(ctx util.GameContext) {
-	db := ctx.DbConn
-	if db.Error != nil {
-		return
-	}
+func (gs *GameState) randomizeStart() (string, error) {
+	db := gs.dbConn
 
 	initKana := possibleHiraganaStart[rand.Intn(len(possibleHiraganaStart))]
+
 	db.AddWord(initKana, initKana, "DUMMY_USER", 0)
-	util.Reply(ctx.TeleCtx, fmt.Sprintf("Первая кана: %s", initKana))
-}
-
-func AddPlayer(ctx util.GameContext) {
-	db := ctx.DbConn
 	if db.Error != nil {
-		return
+		return "", fmt.Errorf("randomize start error: %w", db.Error)
 	}
 
-	db.AddPlayer(util.ID(ctx.TeleCtx), util.Username(ctx.TeleCtx), util.FirstName(ctx.TeleCtx))
-	util.Reply(ctx.TeleCtx, fmt.Sprintf("%s, добро пожаловать в игру!", util.FirstName(ctx.TeleCtx)))
+	return initKana, nil
 }
 
-func PlayerExists(ctx util.GameContext) bool {
-	db := ctx.DbConn
+func (gs *GameState) addPlayer(ctx tele.Context) error {
+	db := gs.dbConn
+
+	db.AddPlayer(util.ID(ctx), util.Username(ctx), util.FirstName(ctx))
 	if db.Error != nil {
-		return false
+		return db.Error
 	}
 
-	return db.CheckPlayerExistence(util.Username(ctx.TeleCtx))
+	return nil
 }
 
-func InitData(ctx util.GameContext) {
-	db := ctx.DbConn
+func (gs *GameState) playerExists(ctx tele.Context) (bool, error) {
+	db := gs.dbConn
+
+	result := db.CheckPlayerExistence(util.Username(ctx))
 	if db.Error != nil {
-		return
+		return false, db.Error
 	}
+
+	return result, nil
+}
+
+func (gs *GameState) lastWord() (string, string, error) {
+	db := gs.dbConn
+
+	word, read := db.LastWord()
+	if db.Error != nil {
+		return "", "", fmt.Errorf("last word game error: %w", db.Error)
+	}
+
+	return word, read, nil
+}
+
+func (gs *GameState) addWord(ctx tele.Context, word string, kana string) error {
+	db := gs.dbConn
+
+	db.AddWord(word, kana, util.Username(ctx), util.ID(ctx))
+	if db.Error != nil {
+		return fmt.Errorf("add word game error: %w", db.Error)
+	}
+
+	return nil
+}
+
+func (gs *GameState) StartGame() (string, error) {
+	db := gs.dbConn
+	db.Reset()
 
 	db.Init()
+	if db.Error != nil {
+		return "", fmt.Errorf("start game error: %w", db.Error)
+	}
+
+	return gs.randomizeStart()
 }
 
-func ClearData(ctx util.GameContext) {
-	db := ctx.DbConn
-	if db.Error != nil {
-		return
-	}
+func (gs *GameState) StopGame() error {
+	db := gs.dbConn
+	db.Reset()
 
 	db.ClearTables()
-}
-
-func LastWord(ctx util.GameContext) (string, string) {
-	db := ctx.DbConn
 	if db.Error != nil {
-		return "", ""
+		return fmt.Errorf("stop game error: %w", db.Error)
 	}
 
-	return db.LastWord()
+	return nil
 }
 
-func AllPlayers(ctx util.GameContext) []dao.Player {
-	db := ctx.DbConn
-	if db.Error != nil {
-		return nil
+func (gs *GameState) HandleNextWord(ctx tele.Context) (WordHandleResult, error) {
+	dicts := gs.dicts
+	db := gs.dbConn
+	db.Reset()
+
+	if !isJapSuitable(ctx.Text()) {
+		return WordNotJapanese, nil
 	}
 
-	return db.AllPlayers()
-}
-
-func AddWord(ctx util.GameContext, word string, kana string) {
-	db := ctx.DbConn
-	if db.Error != nil {
-		return
+	ok, err := gs.playerExists(ctx)
+	if err != nil {
+		return GotError, fmt.Errorf("handle next word game error: %w", err)
 	}
-
-	db.AddWord(word, kana, util.Username(ctx.TeleCtx), util.ID(ctx.TeleCtx))
-}
-
-func NullifyScore(ctx util.GameContext) {
-	db := ctx.DbConn
-	if db.Error != nil {
-		return
-	}
-
-	db.SetScore(util.Username(ctx.TeleCtx), 0)
-}
-
-func HandleCommand(ctx util.GameContext) {
-	state, err := ExchangeState(util.Command(ctx.TeleCtx.Text()))
-
-	if err == nil {
-		switch state {
-		case Init:
-			SetThreadId(ctx.TeleCtx.Message().ThreadID)
-			InitData(ctx)
-			AddPlayer(ctx) // Player who pressed /start_game
-			util.Reply(ctx.TeleCtx, Greetings)
-			RandomizeStart(ctx)
-		case Running:
-			SetThreadId(PoisonedId)
-			FormAndSendStats(ctx)
-			ClearData(ctx)
-		}
-	} else {
-		switch state {
-		case Init:
-			util.Reply(ctx.TeleCtx, IsNotStartedError)
-		case Running:
-			util.Reply(ctx.TeleCtx, AlreadyRunningError)
+	if !ok {
+		err := gs.addPlayer(ctx)
+		if err != nil {
+			return GotError, fmt.Errorf("handle next word game error: %w", err)
 		}
 	}
-}
 
-func ForceStop() {
-	ExchangeState(util.StopCommand)
-	SetThreadId(PoisonedId)
-}
+	nextPerson := ctx.Sender()
 
-func HandleNextWord(ctx util.GameContext) {
-	dicts := ctx.Dicts
-	ctx.DbConn.Reset()
-
-	if !PlayerExists(ctx) {
-		AddPlayer(ctx)
+	ok, err = gs.isTheLastPerson(nextPerson)
+	if err != nil {
+		return GotError, fmt.Errorf("handle next word game error: %w", err)
+	}
+	if ok {
+		return FoundLastPerson, nil
 	}
 
-	if ctx.DbConn.Error != nil {
-		util.Reply(ctx.TeleCtx, "Бот упал, обратитесь к админу!")
-		return
+	nextWord := ctx.Text()
+
+	if !isJapSuitable(nextWord) {
+		return WordNotJapanese, nil
 	}
 
-	nextWord := ctx.TeleCtx.Text()
-	nextPerson := ctx.TeleCtx.Sender()
-
-	if IsTheLastPerson(nextPerson, ctx) {
-		util.Reply(ctx.TeleCtx, fmt.Sprintf("Неправильная очередь, %s добавил прошлое слово!", nextPerson.FirstName))
-		return
+	lastWord, lastKana, err := gs.lastWord()
+	if err != nil {
+		return GotError, fmt.Errorf("handle next word game error: %w", err)
 	}
 
-	if IsJapSuitable(nextWord) {
-		lastWord, lastKana := LastWord(ctx)
-		log.Printf("Last Word: %s, %s", lastWord, lastKana)
+	log.Printf("Last Word: %s, %s", lastWord, lastKana)
 
-		nextResponses := make(map[dict.Dictionary]dict.Response)
+	nextResponses := make(map[dict.Dictionary]dict.Response)
 
-		// All ops excluding translation performing on first available dict aka Leader Dict
-		var leaderDict dict.Dictionary
-		isElected := false
+	// All ops excluding translation performing on first available dict aka Leader Dict
+	var leaderDict dict.Dictionary
+	isElected := false
 
-		// Different Responses???
-		for _, dict := range dicts {
-			nextResponse, err := dict.Search(nextWord)
-			if err != nil {
-				log.Printf("Не удалось найти слово в словаре %v: %v", dict.Repr(), err)
-			} else {
-				if !isElected {
-					leaderDict = dict
-					isElected = true
-				}
-				nextResponses[dict] = nextResponse
+	// Different Responses???
+	for _, dict := range dicts {
+		nextResponse, err := dict.Search(nextWord)
+		if err != nil {
+			log.Printf("Не удалось найти слово в словаре %v: %v", dict.Repr(), err)
+		} else {
+			if !isElected {
+				leaderDict = dict
+				isElected = true
 			}
+			nextResponses[dict] = nextResponse
 		}
-
-		if len(nextResponses) == 0 {
-			util.Reply(ctx.TeleCtx, "словари недоступны =(")
-			return
-		}
-
-		nextLeaderResponse := nextResponses[leaderDict]
-		nextSpeechParts, err := nextLeaderResponse.RelevantSpeechParts()
-
-		log.Printf("Части речи: %v", nextSpeechParts)
-
-		if err != nil {
-			log.Println(err)
-			util.Reply(ctx.TeleCtx, err.Error())
-			return
-		}
-
-		nextKanaSearched, err := nextLeaderResponse.RelevantKana()
-		if err != nil {
-			log.Println(err)
-			util.Reply(ctx.TeleCtx, err.Error())
-			return
-		}
-
-		nextWordSearched, err := nextLeaderResponse.RelevantWord()
-		if err != nil {
-			log.Println(err)
-			util.Reply(ctx.TeleCtx, err.Error())
-			return
-		}
-
-		switch {
-		case ctx.DbConn.Error != nil:
-			util.Reply(ctx.TeleCtx, "Бот упал, обратитесь к админу!")
-			return
-
-		case !HasEntries(nextLeaderResponse):
-			util.Reply(ctx.TeleCtx, "К сожалению, я не знаю такого слова(")
-			return
-
-		case !IsJapanese(nextWordSearched):
-			util.Reply(ctx.TeleCtx, "Слово не на японском языке!")
-			return
-
-		case !ContainsNoun(nextSpeechParts, leaderDict):
-			util.Reply(ctx.TeleCtx, "Слово не является существительным!")
-			return
-
-		case IsShadowed(nextWordSearched, nextKanaSearched, nextWord):
-			util.Reply(ctx.TeleCtx, "К сожалению, я не знаю такого слова(")
-			return
-
-		case IsEnd(nextKanaSearched):
-			wordInfo := WordInfo(ctx, "Слово не подходит", nextWordSearched, nextKanaSearched, nextResponses)
-			util.Reply(ctx.TeleCtx, "Раунд завершён, введено завершающее слово!\n"+wordInfo)
-			NullifyScore(ctx)
-			ForceStop()
-			FormAndSendStats(ctx)
-			ClearData(ctx)
-			return
-
-		case IsDoubled(ctx, nextWordSearched):
-			util.Reply(ctx.TeleCtx, "Такое слово уже было")
-			return
-
-		case GetLastKana(lastKana) != GetFirstKana(nextKanaSearched):
-			util.Reply(ctx.TeleCtx, "Слово нельзя присоединить(")
-			return
-
-		case GetLastKana(lastKana) == GetFirstKana(nextKanaSearched):
-			wordInfo := WordInfo(ctx, "Слово подходит", nextWordSearched, nextKanaSearched, nextResponses)
-
-			util.Reply(ctx.TeleCtx, wordInfo)
-			AddWord(ctx, nextWordSearched, nextKanaSearched)
-			util.Reply(ctx.TeleCtx,
-				fmt.Sprintf("Следующее слово начинается с: 「%c」",
-					GetLastKana(nextKanaSearched),
-				),
-			)
-
-		default:
-			util.Reply(ctx.TeleCtx, "Неизвестная ошибка, обратитесь к админу!")
-		}
-	} else {
-		util.Reply(ctx.TeleCtx, "Слово не на японском языке!")
 	}
 
-	if ctx.DbConn.Error != nil {
-		log.Println(ctx.DbConn.Error)
+	if len(nextResponses) == 0 {
+		return DictsNotAnswering, nil
 	}
+
+	nextLeaderResponse := nextResponses[leaderDict]
+	nextSpeechParts, err := nextLeaderResponse.RelevantSpeechParts()
+
+	if err != nil {
+		return NoSpeachPart, nil
+	}
+
+	log.Printf("Части речи: %v", nextSpeechParts)
+
+	nextKanaSearched, err := nextLeaderResponse.RelevantKana()
+	if err != nil {
+		return NoSuchWord, nil
+	}
+
+	nextWordSearched, err := nextLeaderResponse.RelevantWord()
+	if err != nil {
+		return NoSuchWord, nil
+	}
+
+	ok = gs.isDoubled(nextWordSearched)
+	if db.Error != nil {
+		return GotError, fmt.Errorf("handle next word game error: %w", db.Error)
+	}
+	if ok {
+		return GotDoubledWord, nil
+	}
+
+	switch {
+	case db.Error != nil:
+		return GotError, fmt.Errorf("handle next word game error: %w", db.Error)
+
+	case isShadowed(nextWordSearched, nextKanaSearched, nextWord):
+		return NoSuchWord, nil
+
+	case !hasEntries(nextLeaderResponse):
+		return NoSuchWord, nil
+
+	case !isJapanese(nextWordSearched):
+		return WordNotJapanese, nil
+
+	case !containsNoun(nextSpeechParts, leaderDict):
+		return NoSpeachPart, nil
+
+	case getLastKana(lastKana) != getFirstKana(nextKanaSearched):
+		return CantJoinWords, nil
+
+	case isEnd(nextKanaSearched):
+		wordInfo := wordInfo(ctx, "Слово не подходит", nextWordSearched, nextKanaSearched, nextResponses)
+		gs.ResultMessage = "Раунд завершён, введено завершающее слово!\n\n" + wordInfo
+
+		return GotEndWord, nil
+	default:
+	}
+
+	wordInfo := wordInfo(ctx, "Слово подходит", nextWordSearched, nextKanaSearched, nextResponses)
+	wordInfo += fmt.Sprintf("\nСледующее слово начинается с: 「%c」", getLastKana(nextKanaSearched))
+	gs.ResultMessage = wordInfo
+
+	err = gs.addWord(ctx, nextWordSearched, nextKanaSearched)
+	if err != nil {
+		return GotError, fmt.Errorf("handle next word game error: %w", err)
+	}
+
+	return Success, nil
 }
 
-func WordInfo(ctx util.GameContext, msg, word, kana string, responses map[dict.Dictionary]dict.Response) string {
+func wordInfo(ctx tele.Context, msg, word, kana string, responses map[dict.Dictionary]dict.Response) string {
 	wordInfo := fmt.Sprintf("%v, %v!\n%s「%s」\n-----------------------\n",
 		msg,
-		ctx.TeleCtx.Message().Sender.FirstName,
+		ctx.Message().Sender.FirstName,
 		word,
 		kana,
 	)
@@ -305,9 +261,13 @@ func WordInfo(ctx util.GameContext, msg, word, kana string, responses map[dict.D
 	return wordInfo
 }
 
-func FormAndSendStats(ctx util.GameContext) {
-	db := ctx.DbConn
+func (gs *GameState) FormStats() (string, error) {
+	db := gs.dbConn
 	players := db.AllPlayers()
+
+	if db.Error != nil {
+		return "", fmt.Errorf("form stats game error: %w", db.Error)
+	}
 
 	// Sort players by score in descending order
 	sort.Slice(players, func(i, j int) bool {
@@ -319,5 +279,5 @@ func FormAndSendStats(ctx util.GameContext) {
 		stats += fmt.Sprintf("%v) %s, Счёт: %v\n", i+1, p.FirstName, p.Score)
 	}
 
-	util.Reply(ctx.TeleCtx, stats)
+	return stats, nil
 }

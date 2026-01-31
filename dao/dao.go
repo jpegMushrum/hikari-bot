@@ -95,7 +95,7 @@ func (dbc *DBConnection) doWithRetryConnection(fn func(*gorm.DB) error) error {
 
 func (dbc *DBConnection) Init() {
 	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
-		_ = db.Migrator().DropTable(&Word{}, &Player{})
+		db.Migrator().DropTable(&Word{}, &Player{})
 		return db.AutoMigrate(&Word{}, &Player{})
 	})
 }
@@ -173,7 +173,7 @@ func (dbc *DBConnection) LastPlayer() int64 {
 }
 
 func (dbc *DBConnection) CheckWordExistence(word string) bool {
-	var count int64
+	var count int64 = 0
 	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
 		return db.Model(&Word{}).Where("word = ?", word).Count(&count).Error
 	})

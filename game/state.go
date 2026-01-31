@@ -1,62 +1,41 @@
 package game
 
 import (
+	"bakalover/hikari-bot/dao"
+	"bakalover/hikari-bot/dict"
 	"bakalover/hikari-bot/util"
-	"errors"
-	"log"
-	"strings"
 )
 
-type GameState uint8
+type GameState struct {
+	ctk           util.ChatThreadKey
+	ResultMessage string
+	dbConn        *dao.DBConnection
+	dicts         []dict.Dictionary
+}
+
+func NewGame(ctk util.ChatThreadKey, dbConn *dao.DBConnection, dicts []dict.Dictionary) *GameState {
+	return &GameState{
+		ctk:    ctk,
+		dbConn: dbConn,
+		dicts:  dicts,
+	}
+}
+
+func (gs *GameState) Thread() util.ChatThreadKey {
+	return gs.ctk
+}
+
+type WordHandleResult int
 
 const (
-	Init    GameState = 0
-	Running GameState = 1
+	Success           WordHandleResult = 0
+	GotError          WordHandleResult = 1
+	FoundLastPerson   WordHandleResult = 2
+	WordNotJapanese   WordHandleResult = 3
+	DictsNotAnswering WordHandleResult = 4
+	NoSpeachPart      WordHandleResult = 5
+	NoSuchWord        WordHandleResult = 6
+	GotEndWord        WordHandleResult = 7
+	GotDoubledWord    WordHandleResult = 8
+	CantJoinWords     WordHandleResult = 9
 )
-
-var CurrentGameState = Init
-var ThreadID int = -1
-
-func Thread() int {
-	return ThreadID
-}
-
-func SetThreadId(threadId int) {
-	ThreadID = threadId
-}
-
-func ChangeTo(to GameState) {
-	CurrentGameState = to
-}
-
-func GetCurrentGameState() GameState {
-	return CurrentGameState
-}
-
-func IsRunning() bool {
-	return GetCurrentGameState() == Running
-}
-
-func ExchangeState(command util.Command) (GameState, error) {
-	if atIndex := strings.Index(string(command), "@"); atIndex != -1 {
-		command = command[:atIndex]
-	}
-	log.Println(command)
-	prev := GetCurrentGameState()
-	switch command {
-	case util.StartCommand:
-		if prev != Init {
-			return prev, errors.New("")
-		}
-		ChangeTo(Running)
-	case util.StopCommand:
-		if prev == Init {
-			return prev, errors.New("")
-		}
-		ChangeTo(Init)
-	default:
-		log.Println("Unexpected game command on state changing!")
-	}
-
-	return prev, nil
-}
