@@ -35,7 +35,7 @@ func main() {
 		os.Getenv("PG_DB"),
 	)
 
-	dbConn, err := dao.NewConnection(dsn)
+	_, err = dao.NewConnection(dsn)
 	if err != nil {
 		log.Fatalf("Couldn't establish connection to Database!\n%v", err)
 	} else {
@@ -55,7 +55,7 @@ func main() {
 	handlerComposit.AddHandler("/stop_game", &controller.StopGameHandler{})
 	handlerComposit.AddHandler(".", &controller.NextWordGameHandler{})
 
-	overseer := controller.NewOverseer(handlerComposit, dicts, dbConn)
+	overseer := controller.NewOverseer(handlerComposit, dicts, dsn)
 
 	bot.Handle(tele.OnText, func(c tele.Context) error {
 		log.Printf("Handling message: %s\nfrom chat %v, thread %v, user %s", c.Text(), c.Chat().ID, c.Message().ThreadID, c.Sender().FirstName)

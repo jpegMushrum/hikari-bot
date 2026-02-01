@@ -5,6 +5,7 @@ import (
 	"bakalover/hikari-bot/dict"
 	"bakalover/hikari-bot/game"
 	"bakalover/hikari-bot/util"
+	"fmt"
 	"log"
 	"sync"
 
@@ -34,7 +35,7 @@ func (w *Worker) Run() {
 
 			err := w.handler.Handle(w.ctx)
 			if err != nil {
-				log.Println(err.Error())
+				log.Println("run worker error:\n" + err.Error())
 			}
 		case <-w.end:
 			return
@@ -46,36 +47,41 @@ type Overseer struct {
 	handler Handler
 	workers map[util.ChatThreadKey]*Worker
 	dicts   []dict.Dictionary
-	dbConn  *dao.DBConnection
+	dsn     string
 	mu      sync.Mutex
 }
 
-func NewOverseer(handler Handler, dicts []dict.Dictionary, dbConn *dao.DBConnection) *Overseer {
+func NewOverseer(handler Handler, dicts []dict.Dictionary, dsn string) *Overseer {
 	return &Overseer{
 		workers: make(map[util.ChatThreadKey]*Worker),
 		handler: handler,
 		dicts:   dicts,
-		dbConn:  dbConn,
+		dsn:     dsn,
 	}
 }
 
-func (o *Overseer) GetWorker(ctk util.ChatThreadKey, handler Handler) *Worker {
+func (o *Overseer) getWorker(ctk util.ChatThreadKey) (*Worker, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
 	if worker, ok := o.workers[ctk]; ok {
-		return worker
+		return worker, nil
+	}
+
+	dbConn, err := dao.NewConnection(o.dsn)
+	if err != nil {
+		return nil, fmt.Errorf("get worker controller error: %w", err)
 	}
 
 	workerCtx := &WorkerContext{
 		Ctk:    ctk,
 		Game:   nil,
 		Dicts:  o.dicts,
-		DbConn: o.dbConn,
+		DbConn: dbConn,
 	}
 
 	newWorker := &Worker{
-		handler: handler,
+		handler: o.handler,
 		ctx:     workerCtx,
 		message: make(chan tele.Context, 10),
 		end:     make(chan struct{}),
@@ -84,17 +90,22 @@ func (o *Overseer) GetWorker(ctk util.ChatThreadKey, handler Handler) *Worker {
 	o.workers[ctk] = newWorker
 	go newWorker.Run()
 
-	return newWorker
+	return newWorker, nil
 }
 
 func (o *Overseer) SendMessage(ctx tele.Context) {
 	ctk := util.GetCTK(ctx)
-	worker := o.GetWorker(ctk, o.handler)
+	worker, err := o.getWorker(ctk)
+	if err != nil {
+		log.Println("send message controller error:\n" + err.Error())
+		util.Reply(ctx, CallAdmin)
+		return
+	}
 
 	worker.message <- ctx
 }
 
-func (o *Overseer) DeleteWorker(ctk util.ChatThreadKey) {
+func (o *Overseer) deleteWorker(ctk util.ChatThreadKey) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
