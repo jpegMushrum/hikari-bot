@@ -44,6 +44,20 @@ const (
 	Greetings = "Раунд начинается!"
 
 	IsNotStartedError = "Игра ещё не началась!"
+
+	DictsUnavailable = "Словари не доступны, попробуйте чуть позже"
+
+	MustBeNoun = "Слово должно быть существительным!"
+
+	DidntFindWord = "Слово не найдено!"
+
+	SameWord = "Такое слово уже было!"
+
+	CantJoinWord = "Это слово нельзя присоединить!"
+
+	WrongOrder = "Неправильная очередь! %s добавил последнее слово"
+
+	CallAdmin = "Произошла непредвиденная ошибка, позовите администратора"
 )
 
 type HelpHandler struct {
@@ -127,24 +141,24 @@ func (h *NextWordGameHandler) Handle(c *WorkerContext) error {
 	case game.Success:
 		msg = c.Game.ResultMessage
 	case game.FoundLastPerson:
-		msg = fmt.Sprintf("Неправильная очередь! %s добавил последнее слово", c.TeleCtx.Sender().FirstName)
+		msg = fmt.Sprintf(WrongOrder, c.TeleCtx.Sender().FirstName)
 	case game.WordNotJapanese:
 		// Just Ignoring
 		break
 	case game.DictsNotAnswering:
-		msg = "Словари не доступны, попробуйте чуть позже"
+		msg = DictsUnavailable
 	case game.NoSpeachPart:
-		msg = "Слово должно быть существительным!"
+		msg = MustBeNoun
 	case game.NoSuchWord:
-		msg = "Слово не найдено!"
+		msg = DidntFindWord
 	case game.GotDoubledWord:
-		msg = "Такое слово уже было!"
+		msg = SameWord
 	case game.CantJoinWords:
-		msg = "Это слово нельзя присоединить!"
+		msg = CantJoinWord
 
 	// Difficult cases
 	case game.GotError:
-		msg = "Произошла непредвиденная ошибка, позовите администратора"
+		msg = CallAdmin
 		util.Reply(c.TeleCtx, msg)
 		return errors.New("next word handler error:\n" + err.Error())
 
