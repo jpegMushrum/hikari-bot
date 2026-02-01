@@ -35,13 +35,22 @@ func (h *StartGameHandler) Handle(c *WorkerContext) error {
 	}
 
 	c.Game = game.NewGame(c.Ctk, c.DbConn, c.Dicts)
-	initKana, err := c.Game.StartGame()
+	cont, initKana, err := c.Game.Continue()
 	if err != nil {
-		return errors.New("game start handler error:\n" + err.Error())
+		return fmt.Errorf("start game handler error: %w", err)
 	}
 
-	msg := fmt.Sprintf("%s\nПервая кана: %s", Greetings, initKana)
-	util.Reply(c.TeleCtx, msg)
+	if cont {
+		util.Reply(c.TeleCtx, fmt.Sprintf("%s\nПоследняя кана: 「%s」", ContinueGame, string(initKana)))
+	} else {
+		initKana, err := c.Game.StartGame()
+		if err != nil {
+			return errors.New("game start handler error:\n" + err.Error())
+		}
+
+		msg := fmt.Sprintf("%s\nПервая кана: 「%s」", Greetings, initKana)
+		util.Reply(c.TeleCtx, msg)
+	}
 
 	return nil
 }

@@ -282,3 +282,18 @@ func (gs *GameState) FormStats() (string, error) {
 
 	return stats, nil
 }
+
+func (gs *GameState) Continue() (bool, rune, error) {
+	db := gs.dbConn
+
+	lastWord, lastKana := db.LastWord(util.GetGameKey(gs.ctk))
+	if db.Error != nil {
+		return false, 0, fmt.Errorf("continue game error: %w", db.Error)
+	}
+
+	if lastWord == "" && lastKana == "" {
+		return false, 0, nil
+	} else {
+		return true, getLastKana(lastKana), nil
+	}
+}

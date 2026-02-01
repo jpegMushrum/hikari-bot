@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -198,13 +199,22 @@ func (dbc *DBConnection) SetScore(key GameKey, username string, score uint64) {
 func (dbc *DBConnection) LastWord(key GameKey) (string, string) {
 	var last Word
 	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
-		return db.
+		err := db.
 			Where(
 				"chat_id = ? AND thread_id = ?",
 				key.ChatID, key.ThreadID,
 			).
 			Order("id DESC").
 			First(&last).Error
+
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil // нет слов — игра ещё не началась
+			}
+			return err
+		}
+
+		return nil
 	})
 
 	return last.Word, last.Kana
