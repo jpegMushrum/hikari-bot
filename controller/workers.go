@@ -91,6 +91,7 @@ func (w *Worker) Run(die func(util.ChatThreadKey)) {
 
 			err := w.handler.Handle(w.ctx)
 			if err != nil {
+				util.Reply(w.ctx.TeleCtx, CallAdmin)
 				log.Println("run worker error:\n" + err.Error())
 			}
 		case <-w.ctx.backCtx.Done():
