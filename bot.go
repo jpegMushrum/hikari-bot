@@ -35,7 +35,8 @@ func main() {
 		os.Getenv("PG_DB"),
 	)
 
-	_, err = dao.NewConnection(dsn)
+	db, err := dao.NewConnection(dsn)
+	db.Init()
 	if err != nil {
 		log.Fatalf("Couldn't establish connection to Database!\n%v", err)
 	} else {

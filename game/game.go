@@ -90,7 +90,8 @@ func (gs *GameState) StartGame() (string, error) {
 	db := gs.dbConn
 	db.Reset()
 
-	db.Init(util.GetGameKey(gs.ctk))
+	db.ClearGame(util.GetGameKey(gs.ctk))
+
 	if db.Error != nil {
 		return "", fmt.Errorf("start game error: %w", db.Error)
 	}

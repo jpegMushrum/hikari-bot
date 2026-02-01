@@ -101,7 +101,7 @@ func (dbc *DBConnection) doWithRetryConnection(fn func(*gorm.DB) error) error {
 	return err
 }
 
-func (dbc *DBConnection) Init(key GameKey) {
+func (dbc *DBConnection) Init() {
 	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
 		return db.AutoMigrate(&Word{}, &Player{})
 	})
