@@ -24,7 +24,7 @@ var possibleHiraganaStart = []string{
 	"わ",
 	"が", "ぎ", "ぐ", "げ", "ご",
 	"ざ", "じ", "ず", "ぜ", "ぞ",
-	"だ", "ぢ", "づ", "で", "ど",
+	"だ", "で", "ど",
 	"ば", "び", "ぶ", "べ", "ぼ",
 	"ぱ", "ぴ", "ぷ", "ぺ", "ぽ",
 }
@@ -34,7 +34,7 @@ func (gs *GameState) randomizeStart() (string, error) {
 
 	initKana := possibleHiraganaStart[rand.Intn(len(possibleHiraganaStart))]
 
-	db.AddWord(initKana, initKana, "DUMMY_USER", 0)
+	db.AddWord(util.GetGameKey(gs.ctk), initKana, initKana, "DUMMY_USER", 0)
 	if db.Error != nil {
 		return "", fmt.Errorf("randomize start error: %w", db.Error)
 	}
@@ -45,7 +45,7 @@ func (gs *GameState) randomizeStart() (string, error) {
 func (gs *GameState) addPlayer(ctx tele.Context) error {
 	db := gs.dbConn
 
-	db.AddPlayer(util.ID(ctx), util.Username(ctx), util.FirstName(ctx))
+	db.AddPlayer(util.GetGameKey(gs.ctk), util.ID(ctx), util.Username(ctx), util.FirstName(ctx))
 	if db.Error != nil {
 		return db.Error
 	}
@@ -56,7 +56,7 @@ func (gs *GameState) addPlayer(ctx tele.Context) error {
 func (gs *GameState) playerExists(ctx tele.Context) (bool, error) {
 	db := gs.dbConn
 
-	result := db.CheckPlayerExistence(util.Username(ctx))
+	result := db.CheckPlayerExistence(util.GetGameKey(gs.ctk), util.Username(ctx))
 	if db.Error != nil {
 		return false, db.Error
 	}
@@ -67,7 +67,7 @@ func (gs *GameState) playerExists(ctx tele.Context) (bool, error) {
 func (gs *GameState) lastWord() (string, string, error) {
 	db := gs.dbConn
 
-	word, read := db.LastWord()
+	word, read := db.LastWord(util.GetGameKey(gs.ctk))
 	if db.Error != nil {
 		return "", "", fmt.Errorf("last word game error: %w", db.Error)
 	}
@@ -78,7 +78,7 @@ func (gs *GameState) lastWord() (string, string, error) {
 func (gs *GameState) addWord(ctx tele.Context, word string, kana string) error {
 	db := gs.dbConn
 
-	db.AddWord(word, kana, util.Username(ctx), util.ID(ctx))
+	db.AddWord(util.GetGameKey(gs.ctk), word, kana, util.Username(ctx), util.ID(ctx))
 	if db.Error != nil {
 		return fmt.Errorf("add word game error: %w", db.Error)
 	}
@@ -90,7 +90,7 @@ func (gs *GameState) StartGame() (string, error) {
 	db := gs.dbConn
 	db.Reset()
 
-	db.Init()
+	db.Init(util.GetGameKey(gs.ctk))
 	if db.Error != nil {
 		return "", fmt.Errorf("start game error: %w", db.Error)
 	}
@@ -102,7 +102,7 @@ func (gs *GameState) StopGame() error {
 	db := gs.dbConn
 	db.Reset()
 
-	db.ClearTables()
+	db.ClearGame(util.GetGameKey(gs.ctk))
 	if db.Error != nil {
 		return fmt.Errorf("stop game error: %w", db.Error)
 	}
@@ -163,7 +163,7 @@ func (gs *GameState) HandleNextWord(ctx tele.Context) (WordHandleResult, error) 
 	for _, dict := range dicts {
 		nextResponse, err := dict.Search(nextWord)
 		if err != nil {
-			log.Printf("Не удалось найти слово в словаре %v: %v", dict.Repr(), err)
+			log.Printf("Coudln't find word in dictionary %v: %v", dict.Repr(), err)
 		} else {
 			if !isElected {
 				leaderDict = dict
@@ -228,6 +228,7 @@ func (gs *GameState) HandleNextWord(ctx tele.Context) (WordHandleResult, error) 
 		gs.ResultMessage = "Раунд завершён, введено завершающее слово!\n\n" + wordInfo
 
 		return GotEndWord, nil
+
 	default:
 	}
 
@@ -263,7 +264,7 @@ func wordInfo(ctx tele.Context, msg, word, kana string, responses map[dict.Dicti
 
 func (gs *GameState) FormStats() (string, error) {
 	db := gs.dbConn
-	players := db.AllPlayers()
+	players := db.AllPlayers(util.GetGameKey(gs.ctk))
 
 	if db.Error != nil {
 		return "", fmt.Errorf("form stats game error: %w", db.Error)

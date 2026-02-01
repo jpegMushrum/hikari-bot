@@ -2,6 +2,7 @@ package game
 
 import (
 	"bakalover/hikari-bot/dict"
+	"bakalover/hikari-bot/util"
 	"errors"
 	"log"
 	"strings"
@@ -119,7 +120,7 @@ func isEnd(word string) bool {
 }
 
 func (gs *GameState) isDoubled(word string) bool {
-	return gs.dbConn.CheckWordExistence(word)
+	return gs.dbConn.CheckWordExistence(util.GetGameKey(gs.ctk), word)
 }
 
 func containsNoun(speechParts []string, dict dict.Dictionary) bool {
@@ -155,7 +156,7 @@ func isJapSuitable(word string) bool {
 func (gs *GameState) isTheLastPerson(user *telebot.User) (bool, error) {
 	db := gs.dbConn
 
-	lastPlayer := db.LastPlayer()
+	lastPlayer := db.LastPlayer(util.GetGameKey(gs.ctk))
 	if db.Error != nil {
 		return false, errors.New("is tha last person error:\n" + db.Error.Error())
 	}

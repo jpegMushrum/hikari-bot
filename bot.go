@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	log.Println("Running hikari-bot v1.1.4")
+	log.Println("Running hikari-bot v1.1.5")
 
 	bot, err := tele.NewBot(tele.Settings{
 		Token:       os.Getenv("HIKARI_BOT_TOKEN"),

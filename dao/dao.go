@@ -10,8 +10,14 @@ import (
 	"gorm.io/gorm"
 )
 
+type GameKey struct {
+	ChatID   int64 `gorm:"column:chat_id;not null;index"`
+	ThreadID int   `gorm:"column:thread_id;not null;index"`
+}
+
 type Word struct {
 	ID       int `gorm:"primaryKey;autoIncrement"`
+	GameKey  `gorm:"embedded"`
 	Word     string
 	Kana     string
 	Username string
@@ -19,7 +25,8 @@ type Word struct {
 }
 
 type Player struct {
-	ID        int64  `gorm:"primaryKey"`
+	ID        int64 `gorm:"primaryKey"`
+	GameKey   `gorm:"embedded"`
 	FirstName string //Pretty stats at the end
 	Username  string
 	Score     uint64
@@ -93,89 +100,140 @@ func (dbc *DBConnection) doWithRetryConnection(fn func(*gorm.DB) error) error {
 	return err
 }
 
-func (dbc *DBConnection) Init() {
+func (dbc *DBConnection) Init(key GameKey) {
 	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
-		db.Migrator().DropTable(&Word{}, &Player{})
 		return db.AutoMigrate(&Word{}, &Player{})
 	})
 }
 
-func (dbc *DBConnection) ClearTables() {
+func (dbc *DBConnection) ClearGame(key GameKey) {
 	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
-		var tables []string
-		if err := db.Raw(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`).Scan(&tables).Error; err != nil {
+		if err := db.
+			Where("chat_id = ? AND thread_id = ?", key.ChatID, key.ThreadID).
+			Delete(&Word{}).Error; err != nil {
 			return err
 		}
-		for _, t := range tables {
-			if err := db.Exec(fmt.Sprintf("TRUNCATE TABLE %s RESTART IDENTITY CASCADE;", t)).Error; err != nil {
-				return err
-			}
+
+		if err := db.
+			Where("chat_id = ? AND thread_id = ?", key.ChatID, key.ThreadID).
+			Delete(&Player{}).Error; err != nil {
+			return err
 		}
+
 		return nil
 	})
 }
 
-func (dbc *DBConnection) AddPlayer(id int64, username, firstName string) error {
+func (dbc *DBConnection) AddPlayer(key GameKey, id int64, username, firstName string) error {
 	return dbc.doWithRetryConnection(func(db *gorm.DB) error {
-		return db.Create(&Player{ID: id, Username: username, FirstName: firstName, Score: 0}).Error
+		return db.Create(&Player{
+			ID:        id,
+			GameKey:   key,
+			Username:  username,
+			FirstName: firstName,
+			Score:     0,
+		}).Error
 	})
 }
 
-func (dbc *DBConnection) AllPlayers() []Player {
+func (dbc *DBConnection) AllPlayers(key GameKey) []Player {
 	var players []Player
 	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
-		return db.Find(&players).Error
+		return db.
+			Where("chat_id = ? AND thread_id = ?", key.ChatID, key.ThreadID).
+			Order("score DESC").
+			Find(&players).Error
 	})
 
 	return players
 }
 
-func (dbc *DBConnection) CheckPlayerExistence(username string) bool {
+func (dbc *DBConnection) CheckPlayerExistence(key GameKey, username string) bool {
 	var count int64
 	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
-		return db.Model(&Player{}).Where("username = ?", username).Count(&count).Error
+		return db.Model(&Player{}).
+			Where(
+				"chat_id = ? AND thread_id = ? AND username = ?",
+				key.ChatID, key.ThreadID, username,
+			).
+			Count(&count).Error
 	})
+
 	return count > 0
 }
 
-func (dbc *DBConnection) AddWord(word, kana, username string, userID int64) {
+func (dbc *DBConnection) AddWord(key GameKey, word, kana, username string, userID int64) {
 	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
-		if err := db.Create(&Word{UserID: userID, Username: username, Word: word, Kana: kana}).Error; err != nil {
+
+		if err := db.Create(&Word{
+			GameKey:  key,
+			Word:     word,
+			Kana:     kana,
+			Username: username,
+			UserID:   userID,
+		}).Error; err != nil {
 			return err
 		}
-		return db.Model(&Player{}).Where("username = ?", username).
+
+		return db.Model(&Player{}).
+			Where(
+				"chat_id = ? AND thread_id = ? AND username = ?",
+				key.ChatID, key.ThreadID, username,
+			).
 			Update("score", gorm.Expr("score + 1")).Error
 	})
 }
 
-func (dbc *DBConnection) SetScore(username string, score uint64) {
+func (dbc *DBConnection) SetScore(key GameKey, username string, score uint64) {
 	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
-		return db.Model(&Player{}).Where("username = ?", username).
+		return db.Model(&Player{}).
+			Where(
+				"chat_id = ? AND thread_id = ? AND username = ?",
+				key.ChatID, key.ThreadID, username,
+			).
 			Update("score", score).Error
 	})
 }
 
-func (dbc *DBConnection) LastWord() (string, string) {
+func (dbc *DBConnection) LastWord(key GameKey) (string, string) {
 	var last Word
 	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
-		return db.Last(&last).Error
+		return db.
+			Where(
+				"chat_id = ? AND thread_id = ?",
+				key.ChatID, key.ThreadID,
+			).
+			Order("id DESC").
+			First(&last).Error
 	})
+
 	return last.Word, last.Kana
 }
 
-func (dbc *DBConnection) LastPlayer() int64 {
+func (dbc *DBConnection) LastPlayer(key GameKey) int64 {
 	var last Word
 	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
-		return db.Last(&last).Error
+		return db.
+			Where(
+				"chat_id = ? AND thread_id = ?",
+				key.ChatID, key.ThreadID,
+			).
+			Order("id DESC").
+			First(&last).Error
 	})
 
 	return last.UserID
 }
 
-func (dbc *DBConnection) CheckWordExistence(word string) bool {
-	var count int64 = 0
+func (dbc *DBConnection) CheckWordExistence(key GameKey, word string) bool {
+	var count int64
 	dbc.Error = dbc.doWithRetryConnection(func(db *gorm.DB) error {
-		return db.Model(&Word{}).Where("word = ?", word).Count(&count).Error
+		return db.Model(&Word{}).
+			Where(
+				"chat_id = ? AND thread_id = ? AND word = ?",
+				key.ChatID, key.ThreadID, word,
+			).
+			Count(&count).Error
 	})
 
 	return count > 0

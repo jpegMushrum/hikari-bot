@@ -25,3 +25,10 @@ type WorkerContext struct {
 	TeleCtx tele.Context
 	DbConn  *dao.DBConnection
 }
+
+func GetGameKey(ctk ChatThreadKey) dao.GameKey {
+	return dao.GameKey{
+		ChatID:   ctk.ChatId,
+		ThreadID: ctk.ThreadId,
+	}
+}
