@@ -66,7 +66,7 @@ func (h *StopGameHandler) Handle(c *WorkerContext) error {
 			fmt.Sprintf("%s %v %s", c.TeleCtx.Chat().FirstName, c.CTK.ThreadId, c.TeleCtx.Sender().FirstName))
 	}
 
-	result, err := c.Game.FormStats()
+	result, err := c.Game.FormStats(nil)
 	if err != nil {
 		return errors.New("game stop handler error:\n" + err.Error())
 	}
@@ -122,7 +122,7 @@ func (h *NextWordGameHandler) Handle(c *WorkerContext) error {
 		return errors.New("next word handler error:\n" + err.Error())
 
 	case game.GotEndWord:
-		stats, err := c.Game.FormStats()
+		stats, err := c.Game.FormStats(c.TeleCtx.Sender())
 		if err != nil {
 			return errors.New("next word handler error:\n" + err.Error())
 		}

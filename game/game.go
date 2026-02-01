@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"sort"
 
 	tele "gopkg.in/telebot.v3"
 )
@@ -263,7 +262,7 @@ func wordInfo(ctx tele.Context, msg, word, kana string, responses map[dict.Dicti
 	return wordInfo
 }
 
-func (gs *GameState) FormStats() (string, error) {
+func (gs *GameState) FormStats(loser *tele.User) (string, error) {
 	db := gs.dbConn
 	players := db.AllPlayers(util.GetGameKey(gs.ctk))
 
@@ -271,14 +270,14 @@ func (gs *GameState) FormStats() (string, error) {
 		return "", fmt.Errorf("form stats game error: %w", db.Error)
 	}
 
-	// Sort players by score in descending order
-	sort.Slice(players, func(i, j int) bool {
-		return players[i].Score > players[j].Score
-	})
-
 	stats := "Результаты раунда:\n"
 	for i, p := range players {
-		stats += fmt.Sprintf("%v) %s, Счёт: %v\n", i+1, p.FirstName, p.Score)
+
+		if loser != nil && p.ID == loser.ID {
+			stats += fmt.Sprintf("%v) %s, Счёт: %v (Проигравший)\n", i+1, p.FirstName, p.Score)
+		} else {
+			stats += fmt.Sprintf("%v) %s, Счёт: %v\n", i+1, p.FirstName, p.Score)
+		}
 	}
 
 	return stats, nil
