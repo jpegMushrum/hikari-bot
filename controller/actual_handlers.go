@@ -31,17 +31,17 @@ func (h *StartGameHandler) Handle(c *WorkerContext) error {
 	if c.Game != nil {
 		util.Reply(c.TeleCtx, AlreadyRunningError)
 		return errors.New("start game handler error: already started " +
-			fmt.Sprintf("%s %v %s", c.TeleCtx.Chat().FirstName, c.Ctk.ThreadId, c.TeleCtx.Sender().FirstName))
+			fmt.Sprintf("%s %v %s", c.TeleCtx.Chat().FirstName, c.CTK.ThreadId, c.TeleCtx.Sender().FirstName))
 	}
 
-	c.Game = game.NewGame(c.Ctk, c.DbConn, c.Dicts)
+	c.Game = game.NewGame(c.CTK, c.DbConn, c.Dicts)
 	cont, initKana, err := c.Game.Continue()
 	if err != nil {
 		return fmt.Errorf("start game handler error: %w", err)
 	}
 
 	if cont {
-		util.Reply(c.TeleCtx, fmt.Sprintf("%s\nПоследняя кана: 「%s」", ContinueGame, string(initKana)))
+		util.Reply(c.TeleCtx, fmt.Sprintf("%s\nПоследняя кана: 「%s」", ContinueGame, initKana))
 	} else {
 		initKana, err := c.Game.StartGame()
 		if err != nil {
@@ -52,6 +52,7 @@ func (h *StartGameHandler) Handle(c *WorkerContext) error {
 		util.Reply(c.TeleCtx, msg)
 	}
 
+	c.StopTTL()
 	return nil
 }
 
@@ -62,7 +63,7 @@ func (h *StopGameHandler) Handle(c *WorkerContext) error {
 	if c.Game == nil {
 		util.Reply(c.TeleCtx, IsNotStartedError)
 		return errors.New("stop game handler error: is not started " +
-			fmt.Sprintf("%s %v %s", c.TeleCtx.Chat().FirstName, c.Ctk.ThreadId, c.TeleCtx.Sender().FirstName))
+			fmt.Sprintf("%s %v %s", c.TeleCtx.Chat().FirstName, c.CTK.ThreadId, c.TeleCtx.Sender().FirstName))
 	}
 
 	result, err := c.Game.FormStats()
@@ -76,6 +77,7 @@ func (h *StopGameHandler) Handle(c *WorkerContext) error {
 	}
 
 	c.Game = nil
+	c.RefreshTTL()
 
 	util.Reply(c.TeleCtx, result)
 	return nil
@@ -134,6 +136,7 @@ func (h *NextWordGameHandler) Handle(c *WorkerContext) error {
 		}
 
 		c.Game = nil
+		c.RefreshTTL()
 
 		return nil
 	}

@@ -5,19 +5,28 @@ import (
 	"bakalover/hikari-bot/dict"
 	"bakalover/hikari-bot/game"
 	"bakalover/hikari-bot/util"
+	"context"
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	tele "gopkg.in/telebot.v3"
 )
 
+const Timeout = 5 * time.Minute
+
 type WorkerContext struct {
-	Ctk     util.ChatThreadKey
+	CTK     util.ChatThreadKey
 	TeleCtx tele.Context
 	Game    *game.GameState
 	Dicts   []dict.Dictionary
 	DbConn  *dao.DBConnection
+
+	backCtx   context.Context
+	cancel    context.CancelFunc
+	keepAlive chan struct{}
+	stopTimer chan struct{}
 }
 
 type Worker struct {
@@ -27,7 +36,54 @@ type Worker struct {
 	end     chan struct{}
 }
 
-func (w *Worker) Run() {
+func (w *WorkerContext) StartTTLWatcher() {
+	w.keepAlive = make(chan struct{}, 1)
+	w.stopTimer = make(chan struct{}, 1)
+
+	w.backCtx, w.cancel = context.WithCancel(context.Background())
+
+	go func() {
+		timer := time.NewTimer(Timeout)
+		defer timer.Stop()
+
+		for {
+			select {
+			case <-w.backCtx.Done():
+				return
+			case <-w.keepAlive:
+				if !timer.Stop() {
+					<-timer.C
+				}
+				timer.Reset(Timeout)
+
+			case <-w.stopTimer:
+				if !timer.Stop() {
+					<-timer.C
+				}
+
+			case <-timer.C:
+				w.cancel()
+				return
+			}
+		}
+	}()
+}
+
+func (w *WorkerContext) RefreshTTL() {
+	select {
+	case w.keepAlive <- struct{}{}:
+	default:
+	}
+}
+
+func (w *WorkerContext) StopTTL() {
+	select {
+	case w.stopTimer <- struct{}{}:
+	default:
+	}
+}
+
+func (w *Worker) Run(die func(util.ChatThreadKey)) {
 	for {
 		select {
 		case msg := <-w.message:
@@ -37,7 +93,8 @@ func (w *Worker) Run() {
 			if err != nil {
 				log.Println("run worker error:\n" + err.Error())
 			}
-		case <-w.end:
+		case <-w.ctx.backCtx.Done():
+			die(w.ctx.CTK)
 			return
 		}
 	}
@@ -74,11 +131,13 @@ func (o *Overseer) getWorker(ctk util.ChatThreadKey) (*Worker, error) {
 	}
 
 	workerCtx := &WorkerContext{
-		Ctk:    ctk,
+		CTK:    ctk,
 		Game:   nil,
 		Dicts:  o.dicts,
 		DbConn: dbConn,
 	}
+
+	workerCtx.StartTTLWatcher()
 
 	newWorker := &Worker{
 		handler: o.handler,
@@ -88,7 +147,7 @@ func (o *Overseer) getWorker(ctk util.ChatThreadKey) (*Worker, error) {
 	}
 
 	o.workers[ctk] = newWorker
-	go newWorker.Run()
+	go newWorker.Run(o.deleteWorker)
 
 	return newWorker, nil
 }
@@ -110,7 +169,7 @@ func (o *Overseer) deleteWorker(ctk util.ChatThreadKey) {
 	defer o.mu.Unlock()
 
 	if worker, ok := o.workers[ctk]; ok {
-		close(worker.end)
+		worker.ctx.cancel()
 		delete(o.workers, ctk)
 	}
 }

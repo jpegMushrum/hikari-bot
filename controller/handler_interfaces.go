@@ -36,7 +36,7 @@ func (c *HandlerComposit) Handle(ctx *WorkerContext) error {
 	}
 
 	return errors.New("unknown command handler error: " +
-		fmt.Sprintf("%s %v %s", ctx.TeleCtx.Chat().FirstName, ctx.Ctk.ThreadId, ctx.TeleCtx.Sender().FirstName))
+		fmt.Sprintf("%s %v %s", ctx.TeleCtx.Chat().FirstName, ctx.CTK.ThreadId, ctx.TeleCtx.Sender().FirstName))
 }
 
 func NewHandlerComposit() *HandlerComposit {
