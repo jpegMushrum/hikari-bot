@@ -154,7 +154,9 @@ func (o *Overseer) getWorker(ctk util.ChatThreadKey) (*Worker, error) {
 }
 
 func (o *Overseer) SendMessage(ctx tele.Context) {
+	ctx.Message().Text = util.TextWithoutMention(ctx)
 	ctk := util.GetCTK(ctx)
+
 	worker, err := o.getWorker(ctk)
 	if err != nil {
 		log.Println("send message controller error:\n" + err.Error())
