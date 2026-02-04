@@ -30,8 +30,9 @@ type StartGameHandler struct {
 func (h *StartGameHandler) Handle(c *WorkerContext) error {
 	if c.Game != nil {
 		util.Reply(c.TeleCtx, AlreadyRunningError)
-		return errors.New("start game handler error: already started " +
+		log.Println("start game handler error: already started " +
 			fmt.Sprintf("%s %v %s", c.TeleCtx.Chat().FirstName, c.CTK.ThreadId, c.TeleCtx.Sender().FirstName))
+		return nil
 	}
 
 	c.Game = game.NewGame(c.CTK, c.DbConn, c.Dicts)
@@ -62,8 +63,9 @@ type StopGameHandler struct {
 func (h *StopGameHandler) Handle(c *WorkerContext) error {
 	if c.Game == nil {
 		util.Reply(c.TeleCtx, IsNotStartedError)
-		return errors.New("stop game handler error: is not started " +
+		log.Println("stop game handler error: is not started " +
 			fmt.Sprintf("%s %v %s", c.TeleCtx.Chat().FirstName, c.CTK.ThreadId, c.TeleCtx.Sender().FirstName))
+		return nil
 	}
 
 	result, err := c.Game.FormStats(nil)
