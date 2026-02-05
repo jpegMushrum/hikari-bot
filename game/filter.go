@@ -38,6 +38,7 @@ var katakanaToHiragana = map[rune]rune{
 	'ハ': 'は', 'ヒ': 'ひ', 'フ': 'ふ', 'ヘ': 'へ', 'ホ': 'ほ',
 	'マ': 'ま', 'ミ': 'み', 'ム': 'む', 'メ': 'め', 'モ': 'も',
 	'ヤ': 'や', 'ユ': 'ゆ', 'ヨ': 'よ',
+	'ャ': 'ゃ', 'ュ': 'ゅ', 'ョ': 'ょ',
 	'ラ': 'ら', 'リ': 'り', 'ル': 'る', 'レ': 'れ', 'ロ': 'ろ',
 	'ワ': 'わ', 'ヲ': 'を', 'ン': 'ん',
 	'ガ': 'が', 'ギ': 'ぎ', 'グ': 'ぐ', 'ゲ': 'げ', 'ゴ': 'ご',
@@ -60,7 +61,7 @@ func toHiragana(kana rune) rune {
 			return converted
 		}
 	}
-	log.Println("input is not a hiragana or katakana")
+	log.Println("input is not a hiragana or katakana:" + string(kana))
 	return 0
 }
 
@@ -158,7 +159,7 @@ func (gs *GameState) isTheLastPerson(user *telebot.User) (bool, error) {
 
 	lastPlayer := db.LastPlayer(util.GetGameKey(gs.ctk))
 	if db.Error != nil {
-		return false, errors.New("is tha last person error:\n" + db.Error.Error())
+		return false, errors.New("is the last person filter error:\n" + db.Error.Error())
 	}
 
 	log.Printf("Checking if %v == %v\n", user.ID, lastPlayer)

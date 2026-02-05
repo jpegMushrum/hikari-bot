@@ -104,8 +104,7 @@ func (h *NextWordGameHandler) Handle(c *WorkerContext) error {
 	case game.FoundLastPerson:
 		msg = fmt.Sprintf(WrongOrder, c.TeleCtx.Sender().FirstName)
 	case game.WordNotJapanese:
-		// Just Ignoring
-		break
+		log.Println("ignoring not japanese: " + c.TeleCtx.Text())
 	case game.DictsNotAnswering:
 		msg = DictsUnavailable
 	case game.NoSpeachPart:

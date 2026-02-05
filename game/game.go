@@ -115,7 +115,8 @@ func (gs *GameState) HandleNextWord(ctx tele.Context) (WordHandleResult, error) 
 	db := gs.dbConn
 	db.Reset()
 
-	if !isJapSuitable(ctx.Text()) {
+	nextWord := ctx.Text()
+	if !isJapSuitable(nextWord) {
 		return WordNotJapanese, nil
 	}
 
@@ -138,12 +139,6 @@ func (gs *GameState) HandleNextWord(ctx tele.Context) (WordHandleResult, error) 
 	}
 	if ok {
 		return FoundLastPerson, nil
-	}
-
-	nextWord := ctx.Text()
-
-	if !isJapSuitable(nextWord) {
-		return WordNotJapanese, nil
 	}
 
 	lastWord, lastKana, err := gs.lastWord()
@@ -184,7 +179,7 @@ func (gs *GameState) HandleNextWord(ctx tele.Context) (WordHandleResult, error) 
 		return NoSpeachPart, nil
 	}
 
-	log.Printf("Части речи: %v", nextSpeechParts)
+	log.Printf("Speach part: %v", nextSpeechParts)
 
 	nextKanaSearched, err := nextLeaderResponse.RelevantKana()
 	if err != nil {
@@ -195,6 +190,8 @@ func (gs *GameState) HandleNextWord(ctx tele.Context) (WordHandleResult, error) 
 	if err != nil {
 		return NoSuchWord, nil
 	}
+
+	log.Printf("word: %s, %s\n", nextWordSearched, nextKanaSearched)
 
 	ok = gs.isDoubled(nextWordSearched)
 	if db.Error != nil {
@@ -213,9 +210,6 @@ func (gs *GameState) HandleNextWord(ctx tele.Context) (WordHandleResult, error) 
 
 	case !hasEntries(nextLeaderResponse):
 		return NoSuchWord, nil
-
-	case !isJapanese(nextWordSearched):
-		return WordNotJapanese, nil
 
 	case !containsNoun(nextSpeechParts, leaderDict):
 		return NoSpeachPart, nil
