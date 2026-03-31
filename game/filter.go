@@ -15,7 +15,6 @@ import (
 const (
 	deadEnd1 = "ん"
 	deadEnd2 = "ン"
-	longEnd  = "ー"
 	noun     = "noun"
 )
 
@@ -53,7 +52,7 @@ var smallKanaMappings = map[rune]rune{
 	'ぉ': 'お', 'ぁ': 'あ', 'ぅ': 'う', 'ぇ': 'え', 'ぃ': 'い', 'ゃ': 'や', 'ょ': 'よ', 'ゅ': 'ゆ',
 }
 
-func toHiragana(kana rune) rune {
+func runeToHiragana(kana rune) rune {
 	if unicode.In(kana, unicode.Hiragana) {
 		return kana
 	} else if unicode.In(kana, unicode.Katakana) {
@@ -63,6 +62,22 @@ func toHiragana(kana rune) rune {
 	}
 	log.Println("input is not a hiragana or katakana:" + string(kana))
 	return 0
+}
+
+func stringToHiragana(word string) string {
+	result := make([]rune, 0, len(word))
+
+	for _, r := range word {
+		h := runeToHiragana(r)
+		if h == 0 {
+			result = append(result, r)
+			continue
+		} else {
+			result = append(result, h)
+		}
+	}
+
+	return string(result)
 }
 
 func isSmall(kana rune) bool {
@@ -93,7 +108,7 @@ func getLastKana(s string) rune {
 		}
 
 		if unicode.In(r, unicode.Hiragana, unicode.Katakana) {
-			last = toHiragana(r)
+			last = runeToHiragana(r)
 		}
 	}
 
@@ -106,15 +121,19 @@ func getLastKana(s string) rune {
 
 func getFirstKana(s string) int32 {
 	for _, char := range s {
+		if char == 'ー' {
+			continue
+		}
+
 		if unicode.In(char, unicode.Hiragana, unicode.Katakana) {
-			return toHiragana(char)
+			return runeToHiragana(char)
 		}
 	}
 	return 0
 }
 
 func isEnd(word string) bool {
-	if strings.HasSuffix(word, deadEnd1) || strings.HasSuffix(word, deadEnd2) || strings.HasSuffix(word, longEnd) {
+	if strings.HasSuffix(word, deadEnd1) || strings.HasSuffix(word, deadEnd2) {
 		return true
 	}
 	return false
@@ -138,7 +157,11 @@ func hasEntries(r dict.Response) bool {
 
 // Shadow help fix (jisho tries to autocomplete our words)
 func isShadowed(word1 string, kana1 string, word2 string) bool {
-	return word1 != word2 && kana1 != word2
+	eqKanji := word1 == word2
+	eqKana := kana1 == word2
+	eqHiragana := stringToHiragana(kana1) == stringToHiragana(word2)
+
+	return eqKanji || eqKana || eqHiragana
 }
 
 func isJapanese(word string) bool {

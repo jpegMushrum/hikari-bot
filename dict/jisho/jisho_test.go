@@ -1,7 +1,9 @@
 package jisho
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -27,6 +29,7 @@ func TestKana(t *testing.T) {
 	assert.True(t, jr.HasEntries())
 	kana, _ = jr.RelevantKana()
 	assert.True(t, kana == HiraganaOnly)
+	time.Sleep(2 * time.Second)
 }
 
 func TestBlank(t *testing.T) {
@@ -34,6 +37,7 @@ func TestBlank(t *testing.T) {
 
 	jr, _ := dict.Search(Blank)
 	assert.False(t, jr.HasEntries())
+	time.Sleep(2 * time.Second)
 }
 
 func TestKanji(t *testing.T) {
@@ -45,7 +49,10 @@ func TestKanji(t *testing.T) {
 	assert.True(t, kana == KanjiReading1)
 
 	jr, _ = dict.Search(Kanji2)
+	fmt.Println("jr: ", jr)
 	assert.True(t, jr.HasEntries())
 	kana, _ = jr.RelevantKana()
+
 	assert.True(t, kana == KanjiReading2)
+	time.Sleep(2 * time.Second)
 }
