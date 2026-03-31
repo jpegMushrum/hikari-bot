@@ -53,6 +53,10 @@ var smallKanaMappings = map[rune]rune{
 }
 
 func runeToHiragana(kana rune) rune {
+	if kana == 'ー' {
+		return kana
+	}
+
 	if unicode.In(kana, unicode.Hiragana) {
 		return kana
 	} else if unicode.In(kana, unicode.Katakana) {
@@ -60,6 +64,7 @@ func runeToHiragana(kana rune) rune {
 			return converted
 		}
 	}
+
 	log.Println("input is not a hiragana or katakana:" + string(kana))
 	return 0
 }
@@ -103,7 +108,6 @@ func getLastKana(s string) rune {
 
 	for _, r := range s {
 		if r == 'ー' {
-			last = 'ー'
 			continue
 		}
 
@@ -159,9 +163,10 @@ func hasEntries(r dict.Response) bool {
 func isShadowed(word1 string, kana1 string, word2 string) bool {
 	eqKanji := word1 == word2
 	eqKana := kana1 == word2
+	log.Printf("shadowing reading: %s, %s\n", stringToHiragana(kana1), stringToHiragana(word2))
 	eqHiragana := stringToHiragana(kana1) == stringToHiragana(word2)
 
-	return eqKanji || eqKana || eqHiragana
+	return !(eqKanji || eqKana || eqHiragana)
 }
 
 func isJapanese(word string) bool {
